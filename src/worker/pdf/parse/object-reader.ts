@@ -87,23 +87,34 @@ export class IndirectObjectReader {
       const literalLength = dict ? expectInt(dictGet(value, "Length")) : undefined;
 
       let dataEnd: number;
+      let trustedLength = false;
       if (literalLength != null && literalLength >= 0 && dataStart + literalLength <= reader.end) {
-        dataEnd = dataStart + literalLength;
-        reader.seek(dataEnd);
-      } else {
-        // Scan for endstream keyword, then trim trailing EOL.
-        const endIdx = reader.indexOf(KW_ENDSTREAM, dataStart);
-        if (endIdx === -1) {
-          throw new ParseError(`Missing endstream for object ${number} ${generation}`);
+        // Sanity check: the byte right after `dataStart + literalLength`
+        // should be whitespace followed by `endstream`. If not, fall back to
+        // scanning so we recover from off-by-one /Length values.
+        const candidateEnd = dataStart + literalLength;
+        reader.seek(candidateEnd);
+        reader.skipWhile(isWhitespace);
+        if (reader.startsWith(KW_ENDSTREAM)) {
+          dataEnd = candidateEnd;
+          trustedLength = true;
+        } else {
+          reader.seek(dataStart);
+          dataEnd = scanForEndstream(reader, dataStart, number, generation);
         }
-        dataEnd = endIdx;
+      } else {
+        dataEnd = scanForEndstream(reader, dataStart, number, generation);
+      }
+      // Trim trailing EOL bytes from the data range, but only when we found
+      // endstream via scanning — trust the /Length value otherwise.
+      if (!trustedLength) {
         while (dataEnd > dataStart) {
           const b = reader.bytes[dataEnd - 1];
           if (b === undefined || !isEol(b)) break;
           dataEnd--;
         }
-        reader.seek(endIdx);
       }
+      reader.seek(dataEnd);
       streamRange = { start: dataStart, end: dataEnd };
 
       // Consume endstream keyword.
@@ -159,6 +170,19 @@ export class IndirectObjectReader {
     }
     return { number: a.value, generation: b.value, headerEnd: c.range.end };
   }
+}
+
+function scanForEndstream(
+  reader: ByteReader,
+  dataStart: number,
+  number: number,
+  generation: number,
+): number {
+  const idx = reader.indexOf(KW_ENDSTREAM, dataStart);
+  if (idx === -1) {
+    throw new ParseError(`Missing endstream for object ${number} ${generation}`);
+  }
+  return idx;
 }
 
 function skipSingleEol(reader: ByteReader): void {
