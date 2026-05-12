@@ -205,10 +205,57 @@ export class GraphicsStateSimulator {
         this.replaceText({ textMatrix: next, lineMatrix: next });
         return;
       }
+      // Text-showing operators advance the text matrix by the (approximate)
+      // width of the glyphs they rendered. Without parsed font metrics we
+      // use a half-em-per-character estimate, which is wrong for CJK and
+      // exotic fonts but good enough for click-target hit testing.
+      case "Tj": {
+        const advance = approximateAdvanceForString(op.operands[0], this.state().text);
+        this.advanceTextMatrix(advance);
+        return;
+      }
+      case "TJ": {
+        const advance = approximateAdvanceForTJ(op.operands[0], this.state().text);
+        this.advanceTextMatrix(advance);
+        return;
+      }
+      case "'": {
+        // ` implies T* first, then Tj.
+        const stateBefore = this.state();
+        const lineDescent = multiply(
+          [1, 0, 0, 1, 0, -stateBefore.text.leading],
+          stateBefore.text.lineMatrix,
+        );
+        this.replaceText({ textMatrix: lineDescent, lineMatrix: lineDescent });
+        const advance = approximateAdvanceForString(op.operands[0], this.state().text);
+        this.advanceTextMatrix(advance);
+        return;
+      }
+      case '"': {
+        // aw ac string " — set word/char spacing, then ' behavior on the string.
+        const aw = numericOperand(op.operands[0]) ?? 0;
+        const ac = numericOperand(op.operands[1]) ?? 0;
+        this.replaceText({ wordSpace: aw, charSpace: ac });
+        const stateBefore = this.state();
+        const lineDescent = multiply(
+          [1, 0, 0, 1, 0, -stateBefore.text.leading],
+          stateBefore.text.lineMatrix,
+        );
+        this.replaceText({ textMatrix: lineDescent, lineMatrix: lineDescent });
+        const advance = approximateAdvanceForString(op.operands[2], this.state().text);
+        this.advanceTextMatrix(advance);
+        return;
+      }
       default:
         // Other operators don't change the snapshot fields we track.
         return;
     }
+  }
+
+  private advanceTextMatrix(tx: number): void {
+    if (tx === 0) return;
+    const next = multiply([1, 0, 0, 1, tx, 0], this.state().text.textMatrix);
+    this.replaceText({ textMatrix: next });
   }
 
   private replaceTop(patch: Partial<GraphicsState>): void {
@@ -241,6 +288,36 @@ function matrixOperand(operands: PdfValue[]): Matrix | null {
   const nums = operands.slice(0, 6).map(numericOperand);
   if (nums.some((n) => n === undefined)) return null;
   return nums as Matrix;
+}
+
+/**
+ * Coarse text advance for a single string operand. The result is in
+ * text-space units (multiplied through textMatrix in caller). We don't have
+ * font metrics here, so a half-em-per-glyph estimate is the best we can do
+ * without dragging the font program parser into the simulator. Multibyte
+ * fonts roughly halve the count by dividing raw.length / 2 isn't worth the
+ * complexity at the simulator layer — the proper fix is to pass decoded
+ * codepoint counts in from the visual-elements layer.
+ */
+function approximateAdvanceForString(operand: PdfValue | undefined, text: TextState): number {
+  if (!operand || operand.kind !== "string") return 0;
+  const glyphCount = operand.raw.length;
+  return glyphCount * 0.5 * text.fontSize * text.horizScale;
+}
+
+function approximateAdvanceForTJ(operand: PdfValue | undefined, text: TextState): number {
+  if (!operand || operand.kind !== "array") return 0;
+  let advance = 0;
+  for (const item of operand.items) {
+    if (item.kind === "string") {
+      advance += item.raw.length * 0.5 * text.fontSize * text.horizScale;
+    } else if (item.kind === "int" || item.kind === "real") {
+      // TJ adjustments are in thousandths of an em, applied to the
+      // running width in the opposite direction.
+      advance -= (item.value / 1000) * text.fontSize * text.horizScale;
+    }
+  }
+  return advance;
 }
 
 export function transformRect(m: Matrix, rect: PdfRect): PdfRect {

@@ -70,4 +70,24 @@ describe("GraphicsStateSimulator", () => {
     const events = simulate("50 Tz\n");
     expect(events[0]?.stateAfter.text.horizScale).toBe(0.5);
   });
+
+  it("advances the text matrix after Tj so subsequent text-show ops don't overlap", () => {
+    const events = simulate("BT\n/F1 10 Tf\n(AB) Tj\n(CD) Tj\nET\n");
+    // Find both Tj events
+    const tjs = events.filter((e) => e.operation.operator === "Tj");
+    expect(tjs).toHaveLength(2);
+    const firstAdvance = tjs[0]!.stateAfter.text.textMatrix[4];
+    const secondAdvance = tjs[1]!.stateAfter.text.textMatrix[4];
+    // After "AB" we should have advanced; "CD" should advance further.
+    expect(firstAdvance).toBeGreaterThan(0);
+    expect(secondAdvance).toBeGreaterThan(firstAdvance);
+  });
+
+  it("TJ applies array-form spacing adjustments to the running advance", () => {
+    const events = simulate("BT\n/F1 10 Tf\n[(A) -500 (B)] TJ\nET\n");
+    const tj = events.find((e) => e.operation.operator === "TJ")!;
+    // Without the adjustment, advance would be 2 * 5 = 10. The -500 in
+    // thousandths-of-em multiplies to +500/1000 * 10 = +5 added back.
+    expect(tj.stateAfter.text.textMatrix[4]).toBeCloseTo(10 + 5);
+  });
 });
