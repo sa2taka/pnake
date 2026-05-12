@@ -13,8 +13,11 @@ import type {
 import type { LoadResult, PageOperationsResult, StreamResult } from "../shared/protocol";
 import { ByteReader, asciiString } from "./pdf/io/byte-reader";
 import { parseContentStream } from "./pdf/content/parser";
+import { buildVisualElements } from "./pdf/content/visual-elements";
 import type { IndirectObject } from "./pdf/parse/object-reader";
 import { extractFilters } from "./pdf/parse/value-parser";
+import { resolveResources } from "./pdf/resources/resolver";
+import { parseToUnicodeCMap, type ToUnicodeCMap } from "./pdf/resources/cmap";
 import { decodeStream, extractDecodeParms } from "./pdf/streams/decode";
 import { parsePdf } from "./pdf/structure/manifest";
 
@@ -148,11 +151,58 @@ export class ParserState {
     }
     const combined = concatBytes(allBytes);
     const { operations, warnings } = parseContentStream(combined, pageNumber);
+
+    // Resolve the page's resources (using inherited if needed — manifest already
+    // resolved page.resourceRef to either the page's own or an inherited ref).
+    const resources = resolveResources({
+      pageNumber,
+      resourceRef: page.resourceRef,
+      objects: s.objects,
+    });
+
+    // Decode ToUnicode CMaps for each font; failures degrade gracefully.
+    const fontCMaps = new Map<string, ToUnicodeCMap>();
+    for (const [name, font] of Object.entries(resources.fonts)) {
+      if (!font.toUnicodeRef) continue;
+      try {
+        const cmapBytes = await this.decodeStreamObject(font.toUnicodeRef);
+        if (cmapBytes) {
+          fontCMaps.set(name, parseToUnicodeCMap(cmapBytes));
+        }
+      } catch (err) {
+        allWarnings.push({
+          id: `warn:cmap-decode:${font.toUnicodeRef}`,
+          severity: "info",
+          category: "encoding",
+          message: `ToUnicode CMap for /${name} failed: ${(err as Error).message}`,
+        });
+      }
+    }
+
+    const { elements: visualElements, warnings: vwarnings } = buildVisualElements({
+      pageNumber,
+      operations,
+      resources,
+      fontCMaps,
+    });
+
     return {
       pageNumber,
       operations,
-      warnings: [...allWarnings, ...warnings],
+      resources,
+      visualElements,
+      warnings: [...allWarnings, ...warnings, ...vwarnings],
     };
+  }
+
+  private async decodeStreamObject(objectId: string): Promise<Uint8Array | null> {
+    const s = this.require();
+    const obj = s.objects.get(objectId);
+    if (!obj || obj.value.kind !== "stream") return null;
+    const dict = obj.value.dict;
+    const start = streamRangeStart(obj, s.bytes);
+    const raw = s.bytes.subarray(start, start + obj.value.handle.length);
+    return decodeStream(raw, extractFilters(dict), extractDecodeParms(dict));
   }
 
   private require(): State {

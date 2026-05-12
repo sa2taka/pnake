@@ -264,6 +264,19 @@ export interface PdfOperation {
 }
 
 // =============================================================================
+// Visual elements (overlay-bound)
+// =============================================================================
+
+export interface PdfVisualElement {
+  id: string;
+  kind: "text-run" | "image" | "path" | "form-xobject" | "annotation" | "clip";
+  bbox: PdfRect;
+  zIndex: number;
+  sourceOperationIds: string[];
+  preview?: string;
+}
+
+// =============================================================================
 // Warnings
 // =============================================================================
 

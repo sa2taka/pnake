@@ -8,6 +8,8 @@ import type {
   PdfAnalysis,
   PdfObjectDetail,
   PdfOperation,
+  PdfResolvedResources,
+  PdfVisualElement,
   PdfWarning,
 } from "./ir-types";
 
@@ -52,6 +54,8 @@ export type PageOperationsResult = {
   pageNumber: number;
   operations: PdfOperation[];
   warnings: PdfWarning[];
+  resources: PdfResolvedResources;
+  visualElements: PdfVisualElement[];
 };
 
 export type WorkerResponse =
