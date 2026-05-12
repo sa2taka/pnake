@@ -160,6 +160,19 @@ test.describe("pnake — load tracemonkey.pdf", () => {
     await expect(detail).toContainText(/グラフィックス状態|テキストブロック|フォント|線の太さ|位置/);
   });
 
+  test("Structure view falls back gracefully when the PDF is not tagged", async ({ page }) => {
+    await page.goto("/");
+    const input = page.getByTestId("file-input");
+    await input.setInputFiles(TRACEMONKEY);
+
+    await page
+      .getByRole("toolbar")
+      .locator("select")
+      .selectOption({ label: "Structure" });
+    const tree = page.getByTestId("tree-panel");
+    await expect(tree).toContainText(/no logical structure/i);
+  });
+
   test("the bottom drawer renders a hex view of stream bytes", async ({ page }) => {
     await page.goto("/");
     const input = page.getByTestId("file-input");
