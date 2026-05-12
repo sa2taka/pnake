@@ -10,7 +10,6 @@ import {
   useContext,
   useEffect,
   useReducer,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -204,36 +203,39 @@ export function AppProvider({ children, parserService }: AppProviderProps): JSX.
 
   // Fetch operations + visual elements whenever the current page changes.
   //
-  // We deliberately do not depend on pageOperationsStatus: the dispatch we
-  // perform inside this effect would otherwise cancel its own in-flight
-  // request as the status flips idle → loading and the effect re-runs.
-  // Instead, an inFlight ref tracks which page is being fetched.
-  const inFlightRef = useRef<number | null>(null);
+  // The effect creates an AbortController on each run and aborts it during
+  // cleanup. We thread its signal into parser.getPageOperations so the
+  // ParserService implementation can stop work (worker-side cancellation
+  // for WorkerParserService, throwIfAborted gates for InProcess). We also
+  // suppress the dispatch when the controller was aborted to avoid
+  // committing stale results into the reducer.
   useEffect(() => {
     if (!parser) return;
     if (state.status !== "loaded") return;
     if (!state.analysis?.pages[state.currentPage - 1]) return;
     if (state.pageOperations?.pageNumber === state.currentPage) return;
-    if (inFlightRef.current === state.currentPage) return;
 
+    const controller = new AbortController();
     const target = state.currentPage;
-    inFlightRef.current = target;
     dispatch({ type: "pageOpsStart", pageNumber: target });
     parser
-      .getPageOperations(target)
+      .getPageOperations(target, { signal: controller.signal })
       .then((result) => {
-        if (inFlightRef.current !== target) return;
-        inFlightRef.current = null;
+        if (controller.signal.aborted) return;
         dispatch({ type: "pageOpsSuccess", result });
       })
       .catch((err) => {
-        if (inFlightRef.current !== target) return;
-        inFlightRef.current = null;
+        if (controller.signal.aborted) return;
+        // Surface AbortError as a silent no-op (it's our own cleanup).
+        if (err instanceof DOMException && err.name === "AbortError") return;
         dispatch({
           type: "pageOpsError",
           error: err instanceof Error ? err.message : String(err),
         });
       });
+    return () => {
+      controller.abort();
+    };
   }, [state.status, state.currentPage, state.analysis, state.pageOperations, parser]);
 
   // Don't render children until the parser is available — the worker is
