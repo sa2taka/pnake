@@ -26,32 +26,70 @@ export interface LoadOutput {
   structTree?: PdfStructTree;
 }
 
+/**
+ * Transport-agnostic call options.
+ *
+ * The Worker implementation forwards these to WorkerClient, which sends
+ * an out-of-band `cancel` message when the signal aborts and pipes any
+ * `progress` events from the worker back through `onProgress`.
+ *
+ * The in-process implementation honours `signal` by throwing AbortError
+ * before/after each async step. `onProgress` is best-effort: it fires
+ * only at the natural step boundaries the parser already exposes.
+ */
+export interface CallOptions {
+  signal?: AbortSignal;
+  onProgress?: (progress: number, phase?: string) => void;
+}
+
 export interface ParserService {
-  load(buffer: ArrayBuffer, fileName?: string): Promise<LoadOutput>;
-  getObjectDetail(objectId: ObjectId): Promise<PdfObjectDetail>;
-  getStream(objectId: ObjectId, mode: "raw" | "decoded"): Promise<StreamResult>;
-  getPageOperations(pageNumber: number): Promise<PageOperationsResult>;
+  load(
+    buffer: ArrayBuffer,
+    fileName?: string,
+    options?: CallOptions,
+  ): Promise<LoadOutput>;
+  getObjectDetail(objectId: ObjectId, options?: CallOptions): Promise<PdfObjectDetail>;
+  getStream(
+    objectId: ObjectId,
+    mode: "raw" | "decoded",
+    options?: CallOptions,
+  ): Promise<StreamResult>;
+  getPageOperations(pageNumber: number, options?: CallOptions): Promise<PageOperationsResult>;
   dispose(): void;
 }
 
 export class WorkerParserService implements ParserService {
   private readonly client = WorkerClient.spawn();
 
-  async load(buffer: ArrayBuffer, fileName?: string): Promise<LoadOutput> {
-    const { analysis, structTree } = await this.client.load(buffer, fileName);
+  async load(
+    buffer: ArrayBuffer,
+    fileName?: string,
+    options?: CallOptions,
+  ): Promise<LoadOutput> {
+    const { analysis, structTree } = await this.client.load(buffer, fileName, options);
     return { analysis, ...(structTree ? { structTree } : {}) };
   }
 
-  getObjectDetail(objectId: ObjectId): Promise<PdfObjectDetail> {
-    return this.client.getObjectDetail(objectId);
+  getObjectDetail(
+    objectId: ObjectId,
+    options?: CallOptions,
+  ): Promise<PdfObjectDetail> {
+    return this.client.getObjectDetail(objectId, options);
   }
 
-  getStream(objectId: ObjectId, mode: "raw" | "decoded"): Promise<StreamResult> {
-    return this.client.getStream(objectId, mode);
+  getStream(
+    objectId: ObjectId,
+    mode: "raw" | "decoded",
+    options?: CallOptions,
+  ): Promise<StreamResult> {
+    return this.client.getStream(objectId, mode, options);
   }
 
-  getPageOperations(pageNumber: number): Promise<PageOperationsResult> {
-    return this.client.getPageOperations(pageNumber);
+  getPageOperations(
+    pageNumber: number,
+    options?: CallOptions,
+  ): Promise<PageOperationsResult> {
+    return this.client.getPageOperations(pageNumber, options);
   }
 
   dispose(): void {
@@ -62,21 +100,44 @@ export class WorkerParserService implements ParserService {
 export class InProcessParserService implements ParserService {
   private readonly state = new ParserState();
 
-  async load(buffer: ArrayBuffer): Promise<LoadOutput> {
+  async load(
+    buffer: ArrayBuffer,
+    _fileName?: string,
+    options?: CallOptions,
+  ): Promise<LoadOutput> {
+    throwIfAborted(options?.signal);
     const { analysis, structTree } = await this.state.load(buffer);
+    throwIfAborted(options?.signal);
     return { analysis, ...(structTree ? { structTree } : {}) };
   }
 
-  async getObjectDetail(objectId: ObjectId): Promise<PdfObjectDetail> {
+  async getObjectDetail(
+    objectId: ObjectId,
+    options?: CallOptions,
+  ): Promise<PdfObjectDetail> {
+    throwIfAborted(options?.signal);
     return this.state.getObjectDetail(objectId);
   }
 
-  getStream(objectId: ObjectId, mode: "raw" | "decoded"): Promise<StreamResult> {
-    return this.state.getStream(objectId, mode);
+  async getStream(
+    objectId: ObjectId,
+    mode: "raw" | "decoded",
+    options?: CallOptions,
+  ): Promise<StreamResult> {
+    throwIfAborted(options?.signal);
+    const result = await this.state.getStream(objectId, mode);
+    throwIfAborted(options?.signal);
+    return result;
   }
 
-  getPageOperations(pageNumber: number): Promise<PageOperationsResult> {
-    return this.state.getPageOperations(pageNumber);
+  async getPageOperations(
+    pageNumber: number,
+    options?: CallOptions,
+  ): Promise<PageOperationsResult> {
+    throwIfAborted(options?.signal);
+    const result = await this.state.getPageOperations(pageNumber);
+    throwIfAborted(options?.signal);
+    return result;
   }
 
   dispose(): void {
@@ -92,4 +153,8 @@ export function createDefaultParserService(): ParserService {
   } catch {
     return new InProcessParserService();
   }
+}
+
+function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 }
