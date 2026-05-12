@@ -125,59 +125,59 @@
 }
 
 .treepanel-chip[data-kind="catalog"] {
-  color: #c08af9;
+  color: var(--kind-structure);
 }
 .treepanel-chip[data-kind="pages"],
 .treepanel-chip[data-kind="page"] {
-  color: #79c0ff;
+  color: var(--kind-pages);
 }
 .treepanel-chip[data-kind="font"],
 .treepanel-chip[data-kind="fontDescriptor"],
 .treepanel-chip[data-kind="encoding"] {
-  color: #f7c873;
+  color: var(--kind-font);
 }
 .treepanel-chip[data-kind="xobjectImage"] {
-  color: #7ee787;
+  color: var(--kind-image);
 }
 .treepanel-chip[data-kind="xobjectForm"] {
-  color: #9ee487;
+  color: var(--kind-form);
 }
 .treepanel-chip[data-kind="contentStream"] {
-  color: #d2a8ff;
+  color: var(--kind-text);
 }
 .treepanel-chip[data-kind="objectStream"],
 .treepanel-chip[data-kind="xrefStream"] {
-  color: #8b949e;
+  color: var(--kind-stream);
 }
 
 .treepanel-chip[data-kind="graphics-state"] {
-  color: #9ad7ff;
+  color: var(--kind-state);
 }
 .treepanel-chip[data-kind="path-construct"],
 .treepanel-chip[data-kind="path-paint"] {
-  color: #f7c873;
+  color: var(--kind-font);
 }
 .treepanel-chip[data-kind="clipping"] {
-  color: #f7c873;
+  color: var(--kind-font);
   font-style: italic;
 }
 .treepanel-chip[data-kind="text-object"],
 .treepanel-chip[data-kind="text-state"],
 .treepanel-chip[data-kind="text-positioning"],
 .treepanel-chip[data-kind="text-show"] {
-  color: #d2a8ff;
+  color: var(--kind-text);
 }
 .treepanel-chip[data-kind="color"] {
-  color: #ff8fa3;
+  color: var(--kind-color-op);
 }
 .treepanel-chip[data-kind="xobject"] {
-  color: #7ee787;
+  color: var(--kind-image);
 }
 .treepanel-chip[data-kind="image-inline"] {
-  color: #79c0ff;
+  color: var(--kind-pages);
 }
 .treepanel-chip[data-kind="marked-content"] {
-  color: #c08af9;
+  color: var(--kind-structure);
   font-style: italic;
 }
 .treepanel-chip[data-kind="unknown"] {

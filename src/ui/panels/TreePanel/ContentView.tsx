@@ -8,9 +8,12 @@ export function ContentView(): JSX.Element {
   const selectedRef = useRef<HTMLLIElement | null>(null);
 
   // Scroll the selected row into view when selection moves to this page.
+  // behavior: "auto" — CSS reduced-motion can't reach a JS smooth scroll,
+  // and the motion-restraint skill says jumps like this should be
+  // instantaneous in a DevTools-style UI anyway.
   useEffect(() => {
     if (state.selectionOrigin === "tree") return;
-    selectedRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    selectedRef.current?.scrollIntoView({ block: "nearest", behavior: "auto" });
   }, [state.selectedNodeId, state.selectionOrigin]);
 
   // Compute q/Q + BT/ET indent levels for a compact timeline.

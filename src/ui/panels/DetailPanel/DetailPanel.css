@@ -15,7 +15,7 @@
 .detailpanel-error {
   margin: 12px;
   padding: 8px 10px;
-  background: rgba(248, 81, 73, 0.12);
+  background: var(--danger-soft);
   border: 1px solid var(--danger);
   border-radius: 4px;
   color: var(--danger);
@@ -100,20 +100,20 @@
 
 .pdfvalue-null,
 .pdfvalue-bool {
-  color: #79c0ff;
+  color: var(--syntax-bool);
 }
 
 .pdfvalue-num {
-  color: #7ee787;
+  color: var(--syntax-num);
 }
 
 .pdfvalue-name {
-  color: #c08af9;
+  color: var(--syntax-name);
 }
 
 .pdfvalue-string,
 .pdfvalue-string-hex {
-  color: #f7c873;
+  color: var(--syntax-string);
 }
 
 .pdfvalue-ref {

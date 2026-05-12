@@ -14,25 +14,25 @@
 }
 
 .render-overlay rect[data-kind="text-run"] {
-  fill: rgba(68, 147, 248, 0.05);
+  fill: var(--overlay-text-fill);
 }
 
 .render-overlay rect[data-kind="image"] {
-  stroke: rgba(126, 231, 135, 0.6);
+  stroke: var(--overlay-image-stroke);
 }
 
 .render-overlay rect[data-kind="form-xobject"] {
-  stroke: rgba(192, 138, 249, 0.55);
+  stroke: var(--overlay-form-stroke);
   stroke-dasharray: 4 3;
 }
 
 .render-overlay rect:hover {
-  fill: rgba(68, 147, 248, 0.18);
+  fill: var(--overlay-hover-fill);
   stroke: var(--accent);
 }
 
 .render-overlay rect[data-selected="true"] {
-  fill: rgba(68, 147, 248, 0.32);
+  fill: var(--overlay-selected-fill);
   stroke: var(--accent);
   stroke-width: 2;
 }

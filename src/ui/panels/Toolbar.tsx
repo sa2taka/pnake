@@ -78,9 +78,19 @@ export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): JSX.Eleme
             {state.fileName}
           </span>
         )}
-        {state.status === "loading" && <span className="toolbar-status">loading…</span>}
+        {state.status === "loading" && (
+          <span className="toolbar-status" role="status" aria-live="polite">
+            loading…
+          </span>
+        )}
         {state.status === "error" && (
-          <span className="toolbar-status toolbar-status-error">{state.error}</span>
+          <span
+            className="toolbar-status toolbar-status-error"
+            role="alert"
+            aria-live="assertive"
+          >
+            {state.error}
+          </span>
         )}
       </div>
 

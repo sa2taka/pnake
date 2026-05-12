@@ -33,6 +33,40 @@
   --hairline: rgba(255, 255, 255, 0.06);
   --hairline-strong: rgba(255, 255, 255, 0.1);
 
+  /* Paper — for PDF canvas backing, independent of viewer surface. */
+  --paper-bg: #ffffff;
+
+  /*
+   * Semantic chip / syntax accents.
+   *
+   * Used by the tree-view chips (Catalog / Pages / Font / Image / …),
+   * the PdfValue syntax highlighter, and the overlay rect strokes. Names
+   * deliberately encode role, not hue, so future re-skinning lands here
+   * and not at the call sites.
+   */
+  --kind-structure: #c08af9;
+  --kind-pages: #79c0ff;
+  --kind-font: #f7c873;
+  --kind-image: #7ee787;
+  --kind-form: #9ee487;
+  --kind-text: #d2a8ff;
+  --kind-stream: #8b949e;
+  --kind-state: #9ad7ff;
+  --kind-color-op: #ff8fa3;
+
+  --syntax-num: #7ee787;
+  --syntax-name: #c08af9;
+  --syntax-string: #f7c873;
+  --syntax-bool: #79c0ff;
+
+  --overlay-text-fill: rgba(68, 147, 248, 0.05);
+  --overlay-image-stroke: rgba(126, 231, 135, 0.6);
+  --overlay-form-stroke: rgba(192, 138, 249, 0.55);
+  --overlay-hover-fill: rgba(68, 147, 248, 0.18);
+  --overlay-selected-fill: rgba(68, 147, 248, 0.32);
+
+  --danger-soft: rgba(248, 81, 73, 0.12);
+
   /* Type */
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Helvetica Neue",
@@ -71,5 +105,29 @@
 
     --hairline: rgba(0, 0, 0, 0.08);
     --hairline-strong: rgba(0, 0, 0, 0.14);
+
+    /* Light-mode chip / syntax accents — desaturated for readability. */
+    --kind-structure: #8e4ec6;
+    --kind-pages: #1f6feb;
+    --kind-font: #a8651b;
+    --kind-image: #1a7f37;
+    --kind-form: #2da44e;
+    --kind-text: #8250df;
+    --kind-stream: #57606a;
+    --kind-state: #0969da;
+    --kind-color-op: #cf222e;
+
+    --syntax-num: #1a7f37;
+    --syntax-name: #8250df;
+    --syntax-string: #953800;
+    --syntax-bool: #0969da;
+
+    --overlay-text-fill: rgba(9, 105, 218, 0.08);
+    --overlay-image-stroke: rgba(26, 127, 55, 0.6);
+    --overlay-form-stroke: rgba(130, 80, 223, 0.55);
+    --overlay-hover-fill: rgba(9, 105, 218, 0.18);
+    --overlay-selected-fill: rgba(9, 105, 218, 0.32);
+
+    --danger-soft: rgba(207, 34, 46, 0.12);
   }
 }

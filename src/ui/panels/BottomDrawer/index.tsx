@@ -109,24 +109,25 @@ function HexView({ bytes }: { bytes: Uint8Array }): JSX.Element {
     }
     lines.push({ offset: i, hex, ascii });
   }
+  // <pre> may only contain phrasing content per the HTML spec — div is
+  // flow content, so we use plain divs and apply monospace styling via
+  // the container class instead.
   return (
     <div className="bottomdrawer-hex">
-      <pre>
-        {lines.map((l) => (
-          <div key={l.offset} className="bottomdrawer-hex-row">
-            <span className="bottomdrawer-hex-offset">
-              {l.offset.toString(16).padStart(8, "0")}
-            </span>
-            <span className="bottomdrawer-hex-bytes">{l.hex}</span>
-            <span className="bottomdrawer-hex-ascii">{l.ascii}</span>
-          </div>
-        ))}
-        {bytes.length > MAX_PREVIEW_BYTES && (
-          <div className="bottomdrawer-hex-row bottomdrawer-hex-truncated">
-            … {bytes.length - MAX_PREVIEW_BYTES} more bytes
-          </div>
-        )}
-      </pre>
+      {lines.map((l) => (
+        <div key={l.offset} className="bottomdrawer-hex-row">
+          <span className="bottomdrawer-hex-offset">
+            {l.offset.toString(16).padStart(8, "0")}
+          </span>
+          <span className="bottomdrawer-hex-bytes">{l.hex}</span>
+          <span className="bottomdrawer-hex-ascii">{l.ascii}</span>
+        </div>
+      ))}
+      {bytes.length > MAX_PREVIEW_BYTES && (
+        <div className="bottomdrawer-hex-row bottomdrawer-hex-truncated">
+          … {bytes.length - MAX_PREVIEW_BYTES} more bytes
+        </div>
+      )}
     </div>
   );
 }

@@ -29,7 +29,7 @@
 .renderpanel-stack {
   position: relative;
   display: inline-block;
-  background: white;
+  background: var(--paper-bg);
   box-shadow: 0 0 0 1px var(--hairline-strong);
 }
 
