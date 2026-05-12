@@ -49,25 +49,25 @@ export class ValueParser {
     switch (tok.kind) {
       case "true":
         this.tokens.consume();
-        return { kind: "bool", value: true };
+        return { kind: "bool", value: true, range: tok.range };
       case "false":
         this.tokens.consume();
-        return { kind: "bool", value: false };
+        return { kind: "bool", value: false, range: tok.range };
       case "null":
         this.tokens.consume();
-        return { kind: "null" };
+        return { kind: "null", range: tok.range };
       case "name":
         this.tokens.consume();
-        return { kind: "name", value: tok.value };
+        return { kind: "name", value: tok.value, range: tok.range };
       case "stringLiteral":
         this.tokens.consume();
-        return { kind: "string", raw: tok.value };
+        return { kind: "string", raw: tok.value, range: tok.range };
       case "stringHex":
         this.tokens.consume();
-        return { kind: "string", raw: tok.value, hex: true };
+        return { kind: "string", raw: tok.value, hex: true, range: tok.range };
       case "real":
         this.tokens.consume();
-        return { kind: "real", value: tok.value };
+        return { kind: "real", value: tok.value, range: tok.range };
       case "integer": {
         if (this.allowIndirectRef) {
           // Possible "N G R" reference. 3-token lookahead.
@@ -85,11 +85,15 @@ export class ValueParser {
             this.tokens.consume();
             this.tokens.consume();
             this.tokens.consume();
-            return { kind: "ref", target: objectId(a.value, b.value) };
+            return {
+              kind: "ref",
+              target: objectId(a.value, b.value),
+              range: { start: a.range.start, end: c.range.end },
+            };
           }
         }
         this.tokens.consume();
-        return { kind: "int", value: tok.value };
+        return { kind: "int", value: tok.value, range: tok.range };
       }
       case "arrayStart":
         return this.parseArray();
@@ -107,13 +111,17 @@ export class ValueParser {
   }
 
   private parseArray(): PdfValue {
-    this.tokens.consume(); // [
+    const openTok = this.tokens.consume(); // [
     const items: PdfValue[] = [];
     while (true) {
       const next = this.tokens.peek();
       if (next.kind === "arrayEnd") {
-        this.tokens.consume();
-        return { kind: "array", items };
+        const close = this.tokens.consume();
+        return {
+          kind: "array",
+          items,
+          range: { start: openTok.range.start, end: close.range.end },
+        };
       }
       if (next.kind === "eof") {
         throw new ParseError("Unterminated array", next);
@@ -123,13 +131,17 @@ export class ValueParser {
   }
 
   private parseDict(): PdfValue {
-    this.tokens.consume(); // <<
+    const openTok = this.tokens.consume(); // <<
     const entries: PdfDict = {};
     while (true) {
       const next = this.tokens.peek();
       if (next.kind === "dictEnd") {
-        this.tokens.consume();
-        return { kind: "dict", entries };
+        const close = this.tokens.consume();
+        return {
+          kind: "dict",
+          entries,
+          range: { start: openTok.range.start, end: close.range.end },
+        };
       }
       if (next.kind === "eof") {
         throw new ParseError("Unterminated dictionary", next);
@@ -138,7 +150,6 @@ export class ValueParser {
         throw new ParseError(`Expected name as dict key, got ${next.kind}`, next);
       }
       const keyToken = this.tokens.consume() as Token & { kind: "name"; value: string };
-      // Skip stray nulls — some PDFs use "/Foo null" rather than omitting the key.
       const value = this.parseValue();
       entries[keyToken.value] = value;
     }

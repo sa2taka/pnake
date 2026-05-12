@@ -14,7 +14,7 @@ describe("IndirectObjectReader", () => {
     expect(obj.id).toBe("obj:1:0");
     expect(obj.value.kind).toBe("dict");
     if (obj.value.kind !== "dict") throw new Error();
-    expect(obj.value.entries.Pages).toEqual({ kind: "ref", target: "obj:2:0" });
+    expect(obj.value.entries.Pages).toMatchObject({ kind: "ref", target: "obj:2:0" });
     expect(obj.streamRange).toBeUndefined();
     expect(obj.range.start).toBe(0);
   });

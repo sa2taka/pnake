@@ -15,12 +15,10 @@ describe("parseContentStream", () => {
       "ET",
       "Q",
     ]);
-    expect(operations[1]?.operands).toEqual([{ kind: "int", value: 2 }]);
+    expect(operations[1]?.operands[0]).toMatchObject({ kind: "int", value: 2 });
     const tf = operations[3]!;
-    expect(tf.operands).toEqual([
-      { kind: "name", value: "F1" },
-      { kind: "int", value: 12 },
-    ]);
+    expect(tf.operands[0]).toMatchObject({ kind: "name", value: "F1" });
+    expect(tf.operands[1]).toMatchObject({ kind: "int", value: 12 });
   });
 
   it("captures byte ranges for each operation", () => {

@@ -53,8 +53,8 @@ describe("parseXrefAndTrailer (classic table)", () => {
     expect(xref.entries.length).toBe(4);
     expect(xref.entries[0]).toMatchObject({ objectNumber: 0, type: "f" });
     expect(xref.entries[1]).toMatchObject({ objectNumber: 1, type: "n" });
-    expect(trailer.dict.Size).toEqual({ kind: "int", value: 4 });
-    expect(trailer.dict.Root).toEqual({ kind: "ref", target: "obj:1:0" });
+    expect(trailer.dict.Size).toMatchObject({ kind: "int", value: 4 });
+    expect(trailer.dict.Root).toMatchObject({ kind: "ref", target: "obj:1:0" });
   });
 
   it("findStartxref locates the latest startxref offset", () => {

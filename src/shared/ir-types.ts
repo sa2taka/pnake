@@ -43,17 +43,24 @@ export interface StreamHandle {
   decodedLength?: number;
 }
 
+/**
+ * Every variant optionally carries the byte range of the source
+ * tokens that produced it. The parser populates this; manually
+ * constructed values (in tests and the explanation layer) may omit
+ * it. Consumers that need provenance check `value.range`; consumers
+ * that don't care continue to ignore it.
+ */
 export type PdfValue =
-  | { kind: "null" }
-  | { kind: "bool"; value: boolean }
-  | { kind: "int"; value: number }
-  | { kind: "real"; value: number }
-  | { kind: "name"; value: string }
-  | { kind: "string"; raw: Uint8Array; text?: string; hex?: boolean }
-  | { kind: "array"; items: PdfValue[] }
-  | { kind: "dict"; entries: PdfDict }
-  | { kind: "ref"; target: ObjectId }
-  | { kind: "stream"; dict: PdfDict; handle: StreamHandle };
+  | { kind: "null"; range?: ByteRange }
+  | { kind: "bool"; value: boolean; range?: ByteRange }
+  | { kind: "int"; value: number; range?: ByteRange }
+  | { kind: "real"; value: number; range?: ByteRange }
+  | { kind: "name"; value: string; range?: ByteRange }
+  | { kind: "string"; raw: Uint8Array; text?: string; hex?: boolean; range?: ByteRange }
+  | { kind: "array"; items: PdfValue[]; range?: ByteRange }
+  | { kind: "dict"; entries: PdfDict; range?: ByteRange }
+  | { kind: "ref"; target: ObjectId; range?: ByteRange }
+  | { kind: "stream"; dict: PdfDict; handle: StreamHandle; range?: ByteRange };
 
 export type PdfDict = Record<string, PdfValue>;
 

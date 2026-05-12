@@ -56,7 +56,7 @@ describe("parseXrefStream", () => {
       compressedIn: "obj:99:0",
       indexInStream: 1,
     });
-    expect(trailer.dict.Size).toEqual({ kind: "int", value: 3 });
+    expect(trailer.dict.Size).toMatchObject({ kind: "int", value: 3 });
   });
 
   it("honors /Index for sparse object ranges", async () => {
