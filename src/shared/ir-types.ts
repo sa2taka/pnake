@@ -195,6 +195,42 @@ export interface PdfPageSummary {
 }
 
 // =============================================================================
+// Resources
+// =============================================================================
+
+export interface PdfFontResource {
+  objectRef: ObjectId;
+  name: string;
+  subtype: "Type0" | "Type1" | "Type3" | "MMType1" | "TrueType" | "CIDFontType0" | "CIDFontType2" | "Unknown";
+  baseFont?: string;
+  encoding?: string;
+  toUnicodeRef?: ObjectId;
+  embedded: boolean;
+}
+
+export interface PdfXObjectResource {
+  objectRef: ObjectId;
+  name: string;
+  subtype: "Image" | "Form" | "PS" | "Unknown";
+  width?: number;
+  height?: number;
+  colorSpace?: string;
+  bitsPerComponent?: number;
+  filters: PdfFilter[];
+}
+
+export interface PdfResolvedResources {
+  pageNumber: number;
+  fonts: Record<string, PdfFontResource>;
+  xobjects: Record<string, PdfXObjectResource>;
+  extGStates: Record<string, ObjectId>;
+  colorSpaces: Record<string, ObjectId>;
+  patterns: Record<string, ObjectId>;
+  shadings: Record<string, ObjectId>;
+  procSets: string[];
+}
+
+// =============================================================================
 // Content stream operations
 // =============================================================================
 
