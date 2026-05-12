@@ -14,11 +14,22 @@ import { ByteReader, asciiString } from "../io/byte-reader";
 import { Lexer } from "../lex/lexer";
 import { TokenStream } from "../lex/token-stream";
 
+export interface CodespaceRange {
+  /** Byte width of codes in this range (1–4). */
+  width: number;
+  /** Inclusive lower bound as big-endian uint. */
+  start: number;
+  /** Inclusive upper bound as big-endian uint. */
+  end: number;
+}
+
 export interface ToUnicodeCMap {
   /** Map from character code (1–4 byte big-endian uint) to a Unicode string. */
   entries: Map<number, string>;
   /** Source byte ranges hex strings can have. Most PDFs use 2-byte codes. */
   codeByteLengths: Set<number>;
+  /** Declared codespace ranges from begincodespacerange / endcodespacerange. */
+  codespaceRanges: CodespaceRange[];
   warnings: PdfWarning[];
 }
 
@@ -28,6 +39,7 @@ export function parseToUnicodeCMap(decoded: Uint8Array): ToUnicodeCMap {
   const tokens = new TokenStream(lexer);
   const entries = new Map<number, string>();
   const codeByteLengths = new Set<number>();
+  const codespaceRanges: CodespaceRange[] = [];
   const warnings: PdfWarning[] = [];
 
   while (true) {
@@ -44,11 +56,50 @@ export function parseToUnicodeCMap(decoded: Uint8Array): ToUnicodeCMap {
         parseBfrange(tokens, entries, codeByteLengths, warnings);
         continue;
       }
+      if (tok.value === "begincodespacerange") {
+        tokens.consume();
+        parseCodespaceRange(tokens, codespaceRanges, codeByteLengths, warnings);
+        continue;
+      }
     }
     tokens.consume();
   }
 
-  return { entries, codeByteLengths, warnings };
+  return { entries, codeByteLengths, codespaceRanges, warnings };
+}
+
+function parseCodespaceRange(
+  tokens: TokenStream,
+  ranges: CodespaceRange[],
+  codeByteLengths: Set<number>,
+  warnings: PdfWarning[],
+): void {
+  while (true) {
+    const tok = tokens.peek();
+    if (tok.kind === "eof") break;
+    if (tok.kind === "keyword" && tok.value === "endcodespacerange") {
+      tokens.consume();
+      return;
+    }
+    const startTok = tokens.consume();
+    const endTok = tokens.consume();
+    if (startTok.kind !== "stringHex" || endTok.kind !== "stringHex") {
+      warnings.push({
+        id: `warn:cmap-codespace:${startTok.range.start}`,
+        severity: "warn",
+        category: "encoding",
+        message: "Unexpected token in codespacerange",
+      });
+      continue;
+    }
+    const width = startTok.value.length;
+    codeByteLengths.add(width);
+    ranges.push({
+      width,
+      start: readBigEndian(startTok.value),
+      end: readBigEndian(endTok.value),
+    });
+  }
 }
 
 function parseBfchar(
@@ -175,12 +226,31 @@ export function decodeWithCMap(
       }
     }
     if (!matched) {
-      // No mapping — emit a replacement glyph and advance one byte.
+      // No bfchar/bfrange entry hit. Advance by the codespace-declared width
+      // when we have one (so multibyte CMaps don't desync), else by one byte.
+      const width = codespaceWidthFor(cmap, bytes, i) ?? 1;
       out += "�";
-      i++;
+      i += width;
     }
   }
   return out;
+}
+
+function codespaceWidthFor(
+  cmap: ToUnicodeCMap,
+  bytes: Uint8Array,
+  offset: number,
+): number | undefined {
+  if (cmap.codespaceRanges.length === 0) return undefined;
+  // Try each range — longest first — and pick the one whose declared width
+  // fits the remaining bytes AND whose [start, end] contains the prefix.
+  const ranges = [...cmap.codespaceRanges].sort((a, b) => b.width - a.width);
+  for (const range of ranges) {
+    if (offset + range.width > bytes.length) continue;
+    const code = readBigEndian(bytes.subarray(offset, offset + range.width));
+    if (code >= range.start && code <= range.end) return range.width;
+  }
+  return undefined;
 }
 
 // =============================================================================

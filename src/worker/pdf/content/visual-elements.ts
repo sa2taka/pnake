@@ -28,7 +28,7 @@ import {
 } from "./graphics-state";
 import type { ToUnicodeCMap } from "../resources/cmap";
 import { decodeWithCMap } from "../resources/cmap";
-import { asciiString } from "../io/byte-reader";
+import { decodeWithEncoding } from "../resources/encoding";
 
 export interface BuildVisualElementsInput {
   pageNumber: number;
@@ -60,7 +60,9 @@ export function buildVisualElements(
       case "'":
       case '"': {
         const raw = readString(op.operands[op.operator === '"' ? 2 : 0]);
-        const preview = previewText(raw, ctx.stateBefore.text.fontKey, input.fontCMaps);
+        const fontKey = ctx.stateBefore.text.fontKey;
+        const fontEncoding = fontKey ? input.resources.fonts[fontKey]?.encoding : undefined;
+        const preview = previewText(raw, fontKey, input.fontCMaps, fontEncoding);
         // Prefer the decoded codepoint count over raw byte length — multibyte
         // (CID) fonts otherwise inflate bbox widths by ~2x.
         const glyphCount = preview?.length ?? raw?.length ?? 1;
@@ -80,10 +82,14 @@ export function buildVisualElements(
       case "TJ": {
         const arr = op.operands[0];
         if (!arr || arr.kind !== "array") break;
+        const fontKey = ctx.stateBefore.text.fontKey;
+        const fontEncoding = fontKey ? input.resources.fonts[fontKey]?.encoding : undefined;
         const strings: string[] = [];
         for (const item of arr.items) {
           if (item.kind === "string") {
-            strings.push(previewText(item.raw, ctx.stateBefore.text.fontKey, input.fontCMaps) ?? "");
+            strings.push(
+              previewText(item.raw, fontKey, input.fontCMaps, fontEncoding) ?? "",
+            );
           }
         }
         const combined = strings.join("");
@@ -188,6 +194,7 @@ function previewText(
   raw: Uint8Array | undefined,
   fontKey: string | undefined,
   cmaps: Map<string, ToUnicodeCMap> | undefined,
+  fontEncoding: string | undefined,
 ): string | undefined {
   if (!raw) return undefined;
   if (fontKey && cmaps) {
@@ -196,14 +203,9 @@ function previewText(
       return decodeWithCMap(cmap, raw);
     }
   }
-  // Fallback: best-effort ASCII / WinAnsi-ish decode.
-  return printable(raw);
-}
-
-function printable(bytes: Uint8Array): string {
-  const ascii = asciiString(bytes);
-  // Keep non-printable bytes from cluttering the preview.
-  return ascii.replace(/[\x00-\x1f\x7f-\xff]/g, "·");
+  // Without a ToUnicode CMap, fall back to the font's declared Encoding
+  // (WinAnsi / MacRoman / etc) so simple-font PDFs still preview correctly.
+  return decodeWithEncoding(fontEncoding, raw);
 }
 
 // Make `applyMatrix` available to overlay callers.

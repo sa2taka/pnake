@@ -59,4 +59,23 @@ endbfrange
     expect(cmap.entries.get(0x0041)).toBe("B");
     expect(cmap.entries.get(0x0042)).toBe("C");
   });
+
+  it("records codespace ranges and uses them to advance past undefined codes", () => {
+    const src = `
+1 begincodespacerange
+<0000> <FFFF>
+endcodespacerange
+1 beginbfchar
+<0041> <0061>
+endbfchar
+    `;
+    const cmap = parseToUnicodeCMap(toBytes(src));
+    expect(cmap.codespaceRanges).toEqual([{ width: 2, start: 0x0000, end: 0xffff }]);
+
+    // 4 bytes: one known (0x0041 → "a"), then 2 bytes of unknown. The
+    // fallback must advance by 2 (the codespace width) so we don't desync.
+    const bytes = new Uint8Array([0x00, 0x41, 0x00, 0xff]);
+    const out = decodeWithCMap(cmap, bytes);
+    expect(out).toBe("a�");
+  });
 });
