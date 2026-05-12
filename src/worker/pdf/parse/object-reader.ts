@@ -12,7 +12,13 @@
  *    for an `endstream` keyword preceded by whitespace.
  */
 
-import type { ByteRange, ObjectId, PdfDict, PdfValue } from "../../../shared/ir-types";
+import type {
+  ByteRange,
+  ObjectId,
+  PdfDict,
+  PdfValue,
+  PdfWarning,
+} from "../../../shared/ir-types";
 import { objectId } from "../../../shared/ir-types";
 import { ByteReader, isEol, isWhitespace, toBytes } from "../io/byte-reader";
 import { Lexer } from "../lex/lexer";
@@ -32,6 +38,13 @@ export interface IndirectObject {
   range: ByteRange;
   value: PdfValue;
   streamRange?: ByteRange;
+  /**
+   * Issues encountered while reading this object. Populated for "weird
+   * but readable" cases (e.g. missing `endobj` keyword) — fatal errors
+   * still throw ParseError. Callers (manifest.loadObjects) merge these
+   * into the analysis-wide warnings list.
+   */
+  warnings?: PdfWarning[];
 }
 
 const KW_OBJ = toBytes("obj");
@@ -140,18 +153,30 @@ export class IndirectObjectReader {
     // Consume endobj.
     tokens.reset();
     const consumed = consumeKeyword(this.reader, KW_ENDOBJ);
-    endObjRange = consumed
-      ? { start: consumed.start, end: consumed.end }
-      : { start: this.reader.pos, end: this.reader.pos };
+    const warnings: PdfWarning[] = [];
+    if (consumed) {
+      endObjRange = { start: consumed.start, end: consumed.end };
+    } else {
+      endObjRange = { start: this.reader.pos, end: this.reader.pos };
+      warnings.push({
+        id: `warn:endobj-missing:${number}:${generation}`,
+        severity: "warn",
+        category: "structure",
+        message: `Missing endobj keyword for object ${number} ${generation}`,
+        byteRange: { start, end: this.reader.pos },
+      });
+    }
 
-    return {
+    const result: IndirectObject = {
       id: objectId(number, generation),
       number,
       generation,
       range: { start, end: endObjRange.end },
       value,
-      streamRange,
+      ...(streamRange ? { streamRange } : {}),
     };
+    if (warnings.length > 0) result.warnings = warnings;
+    return result;
   }
 
   /**

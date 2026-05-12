@@ -284,6 +284,7 @@ async function loadObjects(
       try {
         const obj = objectReader.readAt(entry.offset);
         objects.set(obj.id, obj);
+        if (obj.warnings) warnings.push(...obj.warnings);
       } catch (err) {
         warnings.push({
           id: `warn:object-parse:${entry.objectNumber}:${entry.generation}`,

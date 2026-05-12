@@ -54,4 +54,13 @@ describe("IndirectObjectReader", () => {
     const r = new IndirectObjectReader(makeReader("not an object"));
     expect(r.peekHeader(0)).toBeNull();
   });
+
+  it("surfaces a warning when endobj is missing but otherwise reads the object", () => {
+    const src = "1 0 obj\n<< /Type /Catalog >>\n";
+    const r = new IndirectObjectReader(makeReader(src));
+    const obj = r.readAt(0);
+    expect(obj.id).toBe("obj:1:0");
+    expect(obj.warnings).toBeDefined();
+    expect(obj.warnings!.some((w) => /endobj/i.test(w.message))).toBe(true);
+  });
 });
