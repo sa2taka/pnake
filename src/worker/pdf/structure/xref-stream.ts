@@ -17,7 +17,7 @@ import type {
 import { objectId } from "../../../shared/ir-types";
 import type { ByteReader } from "../io/byte-reader";
 import { IndirectObjectReader } from "../parse/object-reader";
-import { dictGet, expectArray, expectInt, extractFilters } from "../parse/value-parser";
+import { expectArray, expectInt, extractFilters } from "../parse/value-parser";
 import { decodeStream, extractDecodeParms, UnsupportedFilterError } from "../streams/decode";
 
 export interface XrefStreamResult {
@@ -153,4 +153,4 @@ function readBE(buf: Uint8Array, offset: number, width: number): number {
 }
 
 // re-export helpers for callers that resolve /Prev chains
-export { dictGet, expectInt };
+export { expectInt };

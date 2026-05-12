@@ -39,7 +39,7 @@ import type {
 import { parseObjectId } from "../../../shared/ir-types";
 import { ByteReader, asciiString, isWhitespace, toBytes } from "../io/byte-reader";
 import { IndirectObjectReader, type IndirectObject } from "../parse/object-reader";
-import { dictGet, expectArray, expectInt, expectName, expectRef } from "../parse/value-parser";
+import { expectArray, expectInt, expectName, expectRef } from "../parse/value-parser";
 import {
   findEofMarkers,
   findStartxref,
@@ -303,11 +303,11 @@ async function readXrefAt(reader: ByteReader, offset: number): Promise<XrefParse
 }
 
 function readPrev(dict: PdfDict): number | null {
-  return expectInt(dictGet({ kind: "dict", entries: dict }, "Prev")) ?? null;
+  return expectInt(dict["Prev"]) ?? null;
 }
 
 function readXRefStm(dict: PdfDict): number | null {
-  return expectInt(dictGet({ kind: "dict", entries: dict }, "XRefStm")) ?? null;
+  return expectInt(dict["XRefStm"]) ?? null;
 }
 
 // =============================================================================

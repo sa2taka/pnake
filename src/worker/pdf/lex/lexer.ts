@@ -60,9 +60,6 @@ export class Lexer {
       return { kind: "eof", range: { start, end: start } };
     }
 
-    // Comments are normally eaten by skipWhitespaceAndComments, but a caller
-    // may want to inspect them directly via nextIncludingComments().
-    if (b === CHAR_PERCENT) return this.lexComment(start);
     if (b === CHAR_SLASH) return this.lexName(start);
     if (b === CHAR_LPAREN) return this.lexStringLiteral(start);
     if (b === CHAR_LT) return this.lexLtPrefix(start);
@@ -82,19 +79,6 @@ export class Lexer {
     return this.lexKeywordOrError(start);
   }
 
-  /**
-   * Helper for use during object body parsing: emit comments instead of
-   * silently skipping them, so we can surface them in raw views.
-   */
-  nextIncludingComments(): Token {
-    // Strip ordinary whitespace but stop on `%` so we emit a comment token.
-    this.reader.skipWhile(isWhitespace);
-    if (this.reader.eof) {
-      return { kind: "eof", range: { start: this.reader.pos, end: this.reader.pos } };
-    }
-    return this.next();
-  }
-
   // ---------------------------------------------------------------------------
   // Whitespace / comments
   // ---------------------------------------------------------------------------
@@ -109,18 +93,6 @@ export class Lexer {
         return;
       }
     }
-  }
-
-  private lexComment(start: number): Token {
-    this.reader.advance(1); // consume %
-    const textStart = this.reader.pos;
-    this.reader.skipWhile((b) => b !== CHAR_LF && b !== CHAR_CR);
-    const textEnd = this.reader.pos;
-    return {
-      kind: "comment",
-      range: { start, end: textEnd },
-      text: asciiString(this.reader.subview(textStart, textEnd)),
-    };
   }
 
   // ---------------------------------------------------------------------------

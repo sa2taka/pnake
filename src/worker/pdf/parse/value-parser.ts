@@ -99,9 +99,6 @@ export class ValueParser {
         return this.parseArray();
       case "dictStart":
         return this.parseDict();
-      case "comment":
-        this.tokens.consume();
-        return this.parseValue();
       case "eof":
         throw new ParseError("Unexpected EOF while parsing value", tok);
       default:
@@ -159,11 +156,6 @@ export class ValueParser {
 // =============================================================================
 // Helpers for downstream code
 // =============================================================================
-
-export function dictGet(value: PdfValue, key: string): PdfValue | undefined {
-  if (value.kind !== "dict") return undefined;
-  return value.entries[key];
-}
 
 export function expectInt(value: PdfValue | undefined): number | undefined {
   if (!value) return undefined;

@@ -26,7 +26,6 @@ import { TokenStream } from "../lex/token-stream";
 import {
   ParseError,
   ValueParser,
-  dictGet,
   expectInt,
   extractFilters,
 } from "./value-parser";
@@ -96,8 +95,8 @@ export class IndirectObjectReader {
       skipSingleEol(reader);
 
       const dataStart = reader.pos;
-      const dict = value.kind === "dict" ? value.entries : (undefined as PdfDict | undefined);
-      const literalLength = dict ? expectInt(dictGet(value, "Length")) : undefined;
+      const dict = value.kind === "dict" ? value.entries : undefined;
+      const literalLength = dict ? expectInt(dict["Length"]) : undefined;
 
       let dataEnd: number;
       let trustedLength = false;

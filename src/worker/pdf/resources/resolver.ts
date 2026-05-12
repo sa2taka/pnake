@@ -18,7 +18,6 @@ import type {
 } from "../../../shared/ir-types";
 import type { IndirectObject } from "../parse/object-reader";
 import {
-  dictGet,
   expectArray,
   expectInt,
   expectName,
@@ -318,5 +317,5 @@ function collectProcSet(value: PdfValue | undefined): string[] {
 }
 
 // Helpers re-exported so callers can reuse them when displaying details.
-export { dictGet, expectInt, expectName, expectRef, expectArray, extractFilters };
+export { expectInt, expectName, expectRef, expectArray, extractFilters };
 export type { PdfFilter };

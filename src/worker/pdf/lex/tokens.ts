@@ -9,7 +9,6 @@
 import type { ByteRange } from "../../../shared/ir-types";
 
 export type Token =
-  | { kind: "comment"; range: ByteRange; text: string }
   | { kind: "name"; range: ByteRange; value: string }
   | { kind: "stringLiteral"; range: ByteRange; value: Uint8Array }
   | { kind: "stringHex"; range: ByteRange; value: Uint8Array }

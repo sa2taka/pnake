@@ -69,7 +69,7 @@ export function parseContentStream(
   while (true) {
     const peek = tokens.peek();
     if (peek.kind === "eof") break;
-    if (peek.kind === "comment" || peek.kind === "error") {
+    if (peek.kind === "error") {
       tokens.consume();
       continue;
     }
