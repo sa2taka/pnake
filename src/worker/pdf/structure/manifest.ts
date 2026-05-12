@@ -758,8 +758,12 @@ function walkFormField(
       ? `${parentName}.${partialName}`
       : partialName
     : parentName;
+  // Any presence of /Kids marks this as a non-terminal field per ISO 32000-2
+  // §12.7.4.1 — even an empty array. Treating Kids: [] as a leaf turned
+  // namespace-only parent nodes into fake "Unknown" fields that polluted
+  // the form count.
   const kids = expectArray(dict.Kids);
-  if (kids && kids.length > 0) {
+  if (kids) {
     for (const kid of kids) {
       const kidRef = expectRef(kid);
       if (kidRef) walkFormField(kidRef, fullName, objects, out, visited);
