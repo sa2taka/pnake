@@ -10,8 +10,10 @@
 
 import type { WorkerRequest, WorkerResponse } from "../shared/protocol";
 import { serializeError } from "../shared/protocol";
+import { ParserState } from "./handlers";
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
+const state = new ParserState();
 
 function send(res: WorkerResponse, transfer?: Transferable[]): void {
   if (transfer && transfer.length > 0) {
@@ -28,19 +30,35 @@ async function dispatch(req: WorkerRequest): Promise<void> {
         send({ id: req.id, ok: true, type: "pong", result: req.payload ?? null });
         return;
       }
-      case "load":
-      case "getObjectDetail":
-      case "getStream":
-      case "getPageOperations":
-      case "cancel": {
+      case "load": {
+        const result = await state.load(req.bytes);
+        send({ id: req.id, ok: true, type: "loaded", result });
+        return;
+      }
+      case "getObjectDetail": {
+        const result = state.getObjectDetail(req.objectId);
+        send({ id: req.id, ok: true, type: "objectDetail", result });
+        return;
+      }
+      case "getStream": {
+        const result = await state.getStream(req.objectId, req.mode);
+        send({ id: req.id, ok: true, type: "stream", result }, [result.bytes]);
+        return;
+      }
+      case "getPageOperations": {
         send({
           id: req.id,
           ok: false,
           error: {
             name: "NotImplemented",
-            message: `Handler for ${req.type} is not yet implemented`,
+            message: "getPageOperations is not implemented yet",
           },
         });
+        return;
+      }
+      case "cancel": {
+        // Cancellation is handled inside long-running handlers; this is a no-op
+        // when no work is in flight for the given id.
         return;
       }
     }

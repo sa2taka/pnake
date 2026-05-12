@@ -49,7 +49,17 @@ import { parseObjectStream } from "./object-stream";
 
 const HEADER_SIG = toBytes("%PDF-");
 
+export interface ParseResult {
+  analysis: PdfAnalysis;
+  objects: Map<ObjectId, IndirectObject>;
+  reader: ByteReader;
+}
+
 export async function buildManifest(bytes: Uint8Array): Promise<PdfAnalysis> {
+  return (await parsePdf(bytes)).analysis;
+}
+
+export async function parsePdf(bytes: Uint8Array): Promise<ParseResult> {
   const reader = new ByteReader(bytes);
   const warnings: PdfWarning[] = [];
 
@@ -106,7 +116,7 @@ export async function buildManifest(bytes: Uint8Array): Promise<PdfAnalysis> {
     eofMarkers,
   };
 
-  return {
+  const analysis: PdfAnalysis = {
     fileInfo,
     fileStructure,
     objectsIndex,
@@ -114,6 +124,7 @@ export async function buildManifest(bytes: Uint8Array): Promise<PdfAnalysis> {
     pages,
     warnings,
   };
+  return { analysis, objects: objectsByOffset, reader };
 }
 
 // =============================================================================
