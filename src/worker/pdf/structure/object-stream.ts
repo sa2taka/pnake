@@ -14,7 +14,7 @@ import { ByteReader } from "../io/byte-reader";
 import { Lexer } from "../lex/lexer";
 import { TokenStream } from "../lex/token-stream";
 import type { IndirectObject } from "../parse/object-reader";
-import { ValueParser, expectInt, extractFilters } from "../parse/value-parser";
+import { ValueParser, expectInt, expectName, extractFilters } from "../parse/value-parser";
 import { decodeStream, extractDecodeParms } from "../streams/decode";
 
 export interface ObjectStreamEntry {
@@ -41,21 +41,41 @@ export async function parseObjectStream(
     throw new Error(`Object ${obj.id} stream has no range`);
   }
   const dict = obj.value.dict;
-  const n = expectInt(dict.N) ?? 0;
-  const first = expectInt(dict.First) ?? 0;
+  // Guard against being handed something that isn't /Type /ObjStm. The xref
+  // table can name any object as "compressedIn"; if a malformed xref points
+  // at a non-ObjStm we want a clean rejection, not silently corrupted IR.
+  const typeName = expectName(dict.Type);
+  if (typeName !== "ObjStm") {
+    throw new Error(
+      `Object ${obj.id} claimed as ObjStm but /Type is ${typeName ?? "(missing)"}`,
+    );
+  }
+  const n = expectInt(dict.N);
+  const first = expectInt(dict.First);
+  if (n == null || n < 0 || first == null || first < 0) {
+    throw new Error(`Object ${obj.id} ObjStm missing /N or /First`);
+  }
   const raw = reader.slice(obj.streamRange.start, obj.streamRange.end);
   const decoded = await decodeStream(raw, extractFilters(dict), extractDecodeParms(dict));
+  if (first > decoded.length) {
+    throw new Error(`Object ${obj.id} ObjStm /First out of range`);
+  }
 
   // Header: N pairs of (objNum, offsetFromFirst)
   const headerLexer = new Lexer(new ByteReader(decoded));
   const tokens = new TokenStream(headerLexer);
   const pairs: [number, number][] = [];
+  let lastOffset = -1;
   for (let i = 0; i < n; i++) {
     const num = tokens.consume();
     const off = tokens.consume();
     if (num.kind !== "integer" || off.kind !== "integer") {
       throw new Error(`Malformed ObjStm header at pair ${i}`);
     }
+    if (num.value < 0 || off.value < 0 || off.value <= lastOffset) {
+      throw new Error(`ObjStm header pair ${i} is not monotonic`);
+    }
+    lastOffset = off.value;
     pairs.push([num.value, off.value]);
   }
 
@@ -63,6 +83,9 @@ export async function parseObjectStream(
   for (let i = 0; i < pairs.length; i++) {
     const [num, relOff] = pairs[i]!;
     const start = first + relOff;
+    if (start > decoded.length) {
+      throw new Error(`ObjStm body offset ${start} exceeds decoded length`);
+    }
     const valueLexer = new Lexer(new ByteReader(decoded, start));
     const valueTokens = new TokenStream(valueLexer);
     const value = new ValueParser(valueTokens).parseValue();

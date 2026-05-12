@@ -57,4 +57,18 @@ describe("parseObjectStream", () => {
     expect(second?.value.kind).toBe("string");
     void first;
   });
+
+  it("rejects an object whose /Type is not /ObjStm", async () => {
+    // Same shape but /Type /XObject. Should be refused to avoid silently
+    // resurrecting bodies from a non-ObjStm.
+    const newHeader = toBytes(`5 0 6 10 `);
+    const body = toBytes("<< /A 1 >>(hi)");
+    const compressed = await deflate(concat([newHeader, body]));
+    const objHeader = `9 0 obj\n<< /Type /XObject /N 2 /First ${newHeader.length} /Filter /FlateDecode /Length ${compressed.length} >>\nstream\n`;
+    const pdfBytes = concat([objHeader, compressed, "\nendstream\nendobj\n"]);
+    const reader = new ByteReader(pdfBytes);
+    const objReader = new IndirectObjectReader(reader);
+    const obj = objReader.readAt(0);
+    await expect(parseObjectStream(reader, obj)).rejects.toThrow(/ObjStm/);
+  });
 });

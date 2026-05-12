@@ -346,11 +346,22 @@ async function loadObjects(
   }
 
   // Second pass: decompress object streams referenced by compressed entries.
-  const parentIds = new Set<ObjectId>();
+  // Only emit objects that the xref explicitly claims as compressed-in — an
+  // ObjStm can carry stale or shadowed objects whose latest revision lives
+  // elsewhere, and we must not resurrect them silently. Build an "allowed"
+  // map (parent id → set of object numbers) from the xref, then walk each
+  // parent once and add only the matching bodies.
+  const allowedByParent = new Map<ObjectId, Set<number>>();
   for (const entry of compressed) {
-    if (entry.compressedIn) parentIds.add(entry.compressedIn);
+    if (!entry.compressedIn) continue;
+    let set = allowedByParent.get(entry.compressedIn);
+    if (!set) {
+      set = new Set<number>();
+      allowedByParent.set(entry.compressedIn, set);
+    }
+    set.add(entry.objectNumber);
   }
-  for (const parentId of parentIds) {
+  for (const [parentId, allowed] of allowedByParent) {
     const parent = objects.get(parentId);
     if (!parent) {
       warnings.push({
@@ -363,13 +374,26 @@ async function loadObjects(
     }
     try {
       const contents = await parseObjectStream(reader, parent);
+      let resurrected = 0;
       for (const entry of contents.entries) {
+        if (!allowed.has(entry.number)) {
+          resurrected++;
+          continue;
+        }
         objects.set(entry.id, {
           id: entry.id,
           number: entry.number,
           generation: 0,
           range: parent.range,
           value: entry.value,
+        });
+      }
+      if (resurrected > 0) {
+        warnings.push({
+          id: `warn:objstm-skipped:${parentId}`,
+          severity: "info",
+          category: "structure",
+          message: `Skipped ${resurrected} non-xref objects inside ${parentId}`,
         });
       }
     } catch (err) {
