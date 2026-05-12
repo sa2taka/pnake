@@ -1,0 +1,139 @@
+.shell {
+  display: grid;
+  height: 100%;
+  width: 100%;
+  grid-template-areas:
+    "toolbar toolbar toolbar toolbar toolbar"
+    "tree    splitL  render  splitR  detail"
+    "splitB  splitB  splitB  splitB  splitB"
+    "bottom  bottom  bottom  bottom  bottom"
+    "status  status  status  status  status";
+  background: var(--bg-canvas);
+}
+
+.shell-toolbar {
+  grid-area: toolbar;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--bg-panel);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.shell-tree {
+  grid-area: tree;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--hairline);
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell-render {
+  grid-area: render;
+  background: var(--bg-canvas);
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell-detail {
+  grid-area: detail;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--hairline);
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell-bottom {
+  grid-area: bottom;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--hairline);
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell-status {
+  grid-area: status;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  font-size: var(--fz-xs);
+  color: var(--fg-faint);
+}
+
+/* Splitters use explicit cells so the grid stays predictable */
+.splitter-v {
+  width: var(--splitter-w);
+  height: 100%;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+}
+
+.splitter-v::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--hairline);
+  transition: background 80ms ease-out;
+}
+
+.splitter-v:hover::before,
+.splitter-v[data-active="true"]::before {
+  background: var(--accent);
+}
+
+.splitter-h {
+  height: var(--splitter-w);
+  width: 100%;
+  cursor: row-resize;
+  background: transparent;
+  position: relative;
+}
+
+.splitter-h::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--hairline);
+  transition: background 80ms ease-out;
+}
+
+.splitter-h:hover::before,
+.splitter-h[data-active="true"]::before {
+  background: var(--accent);
+}
+
+.splitter-span-cols {
+  grid-column: 1 / -1;
+  grid-area: splitB;
+}
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  width: 100%;
+  height: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+.statusbar-segment {
+  white-space: nowrap;
+}
+
+.statusbar-muted {
+  color: var(--fg-faint);
+}
+
+.statusbar-spacer {
+  flex: 1;
+}

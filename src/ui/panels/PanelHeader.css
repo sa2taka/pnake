@@ -1,0 +1,28 @@
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--bg-panel);
+  flex-shrink: 0;
+}
+
+.panel-header-title {
+  font-size: var(--fz-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-subtle);
+}
+
+.panel-header-subtitle {
+  font-size: var(--fz-xs);
+  color: var(--fg-faint);
+  font-family: var(--font-mono);
+}
+
+.panel-header-spacer {
+  flex: 1;
+}

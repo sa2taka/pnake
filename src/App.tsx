@@ -1,8 +1,5 @@
-export function App() {
-  return (
-    <main className="empty-app">
-      <h1>pnake</h1>
-      <p>PDF DevTools — scaffolding stage.</p>
-    </main>
-  );
+import { Shell } from "./ui/layout/Shell";
+
+export function App(): JSX.Element {
+  return <Shell />;
 }

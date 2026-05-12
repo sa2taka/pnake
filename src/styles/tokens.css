@@ -1,0 +1,75 @@
+/*
+ * Design tokens — kept here so every component reaches for the same names.
+ * Following the `devtools-aesthetic` skill: greyscale base with one accent,
+ * tabular numerics, hairline borders, no decorative shadows.
+ */
+
+:root {
+  /* Surface ladder, dark mode default */
+  --bg-canvas: #0e0e10;
+  --bg-panel: #15161a;
+  --bg-row: #1c1d22;
+  --bg-row-hover: #22242a;
+  --bg-row-selected: #2b3340;
+  --bg-overlay: #1c1d22;
+
+  /* Foreground ladder */
+  --fg-default: #e6e8eb;
+  --fg-subtle: #b3b6bc;
+  --fg-faint: #74787f;
+  --fg-disabled: #4a4d54;
+
+  /* Accent */
+  --accent: #4493f8;
+  --accent-soft: rgba(68, 147, 248, 0.16);
+
+  /* Functional */
+  --success: #3fb950;
+  --warning: #d29922;
+  --danger: #f85149;
+  --info: #4493f8;
+
+  /* Hairlines */
+  --hairline: rgba(255, 255, 255, 0.06);
+  --hairline-strong: rgba(255, 255, 255, 0.1);
+
+  /* Type */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Helvetica Neue",
+    system-ui, sans-serif;
+  --font-mono:
+    "JetBrains Mono", "SF Mono", "Berkeley Mono", "Menlo", "Consolas",
+    ui-monospace, monospace;
+
+  --fz-xs: 11px;
+  --fz-sm: 12px;
+  --fz-md: 13px;
+  --fz-lg: 14px;
+
+  --row-h-compact: 24px;
+  --row-h: 28px;
+  --row-h-tall: 32px;
+
+  --toolbar-h: 36px;
+  --statusbar-h: 22px;
+  --splitter-w: 4px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-canvas: #fafafa;
+    --bg-panel: #ffffff;
+    --bg-row: #f4f5f7;
+    --bg-row-hover: #ebedf0;
+    --bg-row-selected: #dbe7f6;
+    --bg-overlay: #ffffff;
+
+    --fg-default: #1c1d22;
+    --fg-subtle: #4a4d54;
+    --fg-faint: #74787f;
+    --fg-disabled: #b3b6bc;
+
+    --hairline: rgba(0, 0, 0, 0.08);
+    --hairline-strong: rgba(0, 0, 0, 0.14);
+  }
+}

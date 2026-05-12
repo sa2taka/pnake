@@ -1,0 +1,20 @@
+.treepanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.treepanel-empty {
+  padding: 16px;
+  color: var(--fg-faint);
+  font-size: var(--fz-sm);
+}
+
+.treepanel-list {
+  flex: 1;
+  overflow: auto;
+  font-size: var(--fz-sm);
+  font-family: var(--font-mono);
+}

@@ -1,13 +1,7 @@
-:root {
-  color-scheme: dark light;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", system-ui,
-    sans-serif;
-  font-size: 13px;
-  line-height: 1.4;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-size-adjust: 100%;
+@import "./tokens.css";
+
+* {
+  box-sizing: border-box;
 }
 
 html,
@@ -19,21 +13,40 @@ body,
 }
 
 body {
-  background: #0e0e10;
-  color: #e6e8eb;
+  background: var(--bg-canvas);
+  color: var(--fg-default);
+  font-family: var(--font-sans);
+  font-size: var(--fz-md);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
+  text-size-adjust: 100%;
+  overscroll-behavior: none;
 }
 
-.empty-app {
-  padding: 24px;
-}
-
-.empty-app h1 {
-  font-size: 14px;
-  margin: 0 0 8px;
-  font-weight: 600;
-}
-
-.empty-app p {
+button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0;
   margin: 0;
-  color: #b3b6bc;
+  cursor: pointer;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
