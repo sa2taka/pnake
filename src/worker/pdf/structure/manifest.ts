@@ -88,6 +88,7 @@ export async function parsePdf(bytes: Uint8Array): Promise<ParseResult> {
     });
     fillFromScan(reader, xrefEntries);
   } else {
+    const beforeChain = warnings.length;
     await walkXrefChain(reader, startxrefOffset, bodies, xrefEntries, warnings);
     if (xrefEntries.size === 0) {
       warnings.push({
@@ -95,6 +96,19 @@ export async function parsePdf(bytes: Uint8Array): Promise<ParseResult> {
         severity: "warn",
         category: "xref",
         message: "xref chain produced no usable entries; falling back to a linear scan",
+      });
+      fillFromScan(reader, xrefEntries);
+    } else if (warnings.slice(beforeChain).some((w) => w.id.startsWith("warn:xref-failed"))) {
+      // The chain partially succeeded but a /Prev hop failed mid-walk — some
+      // legitimate older-revision objects may be missing. A linear scan fills
+      // them in WITHOUT overwriting newer xref entries (fillFromScan respects
+      // existing keys), so the newest revision still wins where it speaks.
+      warnings.push({
+        id: "warn:xref-partial-recovery",
+        severity: "info",
+        category: "xref",
+        message:
+          "An xref hop failed; recovering missing objects from a linear scan of indirect headers",
       });
       fillFromScan(reader, xrefEntries);
     }
