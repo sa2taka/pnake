@@ -46,4 +46,20 @@ EMC
     const tj = operations.find((o) => o.operator === "Tj");
     expect(tj?.mcid).toBeUndefined();
   });
+
+  it("resolves MCID from /Properties when BDC operand is a name", () => {
+    // BDC's second operand can be a name referencing the page's /Properties
+    // resource map instead of an inline dict.
+    const src = `/Span /P1 BDC
+(hello) Tj
+EMC
+`;
+    const { operations } = parseContentStream(toBytes(src), 1, {
+      properties: {
+        P1: { MCID: { kind: "int", value: 42 } },
+      },
+    });
+    const tj = operations.find((o) => o.operator === "Tj");
+    expect(tj?.mcid).toBe(42);
+  });
 });

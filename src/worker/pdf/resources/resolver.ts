@@ -54,8 +54,27 @@ export function resolveResources(input: ResolveInput): PdfResolvedResources {
     colorSpaces: collectRefMap(resourceDict?.ColorSpace, input.objects),
     patterns: collectRefMap(resourceDict?.Pattern, input.objects),
     shadings: collectRefMap(resourceDict?.Shading, input.objects),
+    properties: collectPropertiesDicts(resourceDict?.Properties, input.objects),
     procSets: collectProcSet(resourceDict?.ProcSet),
   };
+}
+
+function collectPropertiesDicts(
+  value: PdfValue | undefined,
+  objects: Map<ObjectId, IndirectObject>,
+): Record<string, PdfDict> {
+  const dict = resolveDict(value, objects);
+  if (!dict) return {};
+  const out: Record<string, PdfDict> = {};
+  for (const [name, slot] of Object.entries(dict)) {
+    if (slot.kind === "dict") {
+      out[name] = slot.entries;
+    } else if (slot.kind === "ref") {
+      const ref = objects.get(slot.target);
+      if (ref?.value.kind === "dict") out[name] = ref.value.entries;
+    }
+  }
+  return out;
 }
 
 // =============================================================================

@@ -15,7 +15,7 @@
  * starts with category="unknown" and the post-processor labels them.
  */
 
-import type { PdfOperation, PdfValue, PdfWarning } from "../../../shared/ir-types";
+import type { PdfDict, PdfOperation, PdfValue, PdfWarning } from "../../../shared/ir-types";
 import { operationId } from "../../../shared/ir-types";
 import { ByteReader, asciiString, isWhitespace, toBytes } from "../io/byte-reader";
 import { Lexer } from "../lex/lexer";
@@ -33,9 +33,20 @@ export interface ContentStreamParseResult {
   warnings: PdfWarning[];
 }
 
+export interface ParseContentStreamOptions {
+  /**
+   * Map from /Properties resource name (e.g. "P1") to its property dict.
+   * Used when a BDC operator references the property list by name instead
+   * of supplying an inline dict (ISO 32000-2 §14.6.2). Pass the resolved
+   * resources.properties from PdfResolvedResources here.
+   */
+  properties?: Record<string, PdfDict>;
+}
+
 export function parseContentStream(
   decoded: Uint8Array,
   pageNumber: number,
+  options: ParseContentStreamOptions = {},
 ): ContentStreamParseResult {
   const reader = new ByteReader(decoded);
   const lexer = new Lexer(reader);
@@ -45,6 +56,7 @@ export function parseContentStream(
   // collapsing "1 0 R" inside an operand triple would silently corrupt
   // legal integer-integer-keyword sequences.
   const parser = new ValueParser(tokens, { mode: "content" });
+  const properties = options.properties ?? {};
   const ops: PdfOperation[] = [];
   const warnings: PdfWarning[] = [];
 
@@ -90,13 +102,21 @@ export function parseContentStream(
       };
       if (activeMcid != null) operation.mcid = activeMcid;
       ops.push(operation);
-      // BDC pushes /MCID from the dict operand; BMC pushes nothing.
+      // BDC pushes /MCID from its second operand. The operand can be either
+      // an inline dict ({ /MCID N }) or a name that references the page's
+      // /Properties resource map. Both paths land here.
       if (peek.value === "BDC") {
-        const dict = stack[1];
+        const second = stack[1];
         let pushed: number | undefined;
-        if (dict?.kind === "dict") {
-          const mcid = dict.entries.MCID;
+        if (second?.kind === "dict") {
+          const mcid = second.entries.MCID;
           if (mcid?.kind === "int") pushed = mcid.value;
+        } else if (second?.kind === "name") {
+          const propDict = properties[second.value];
+          if (propDict) {
+            const mcid = propDict.MCID;
+            if (mcid?.kind === "int") pushed = mcid.value;
+          }
         }
         mcidStack.push(pushed);
       } else if (peek.value === "BMC") {

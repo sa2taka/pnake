@@ -253,6 +253,8 @@ export interface PdfResolvedResources {
   colorSpaces: Record<string, ObjectId>;
   patterns: Record<string, ObjectId>;
   shadings: Record<string, ObjectId>;
+  /** /Properties entries — name → resolved dict (used by BDC/BMC marked content). */
+  properties: Record<string, PdfDict>;
   procSets: string[];
 }
 

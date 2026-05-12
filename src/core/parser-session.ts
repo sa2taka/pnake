@@ -204,17 +204,18 @@ export class ParserSession {
         });
       }
     }
-    const combined = concatBytes(allBytes);
-    const { operations, warnings } = parseContentStream(combined, pageNumber);
-
-    // Resolve the page's resources. manifest.enumeratePages has already
-    // walked the /Pages inheritance chain and copied either resourceRef or
-    // resourceDict onto the summary, so we pass both through.
+    // Resolve resources first so parseContentStream can look up /Properties
+    // referenced by name in BDC operators.
     const resources = resolveResources({
       pageNumber,
       resourceRef: page.resourceRef,
       resourceDict: page.resourceDict,
       objects: s.objects,
+    });
+
+    const combined = concatBytes(allBytes);
+    const { operations, warnings } = parseContentStream(combined, pageNumber, {
+      properties: resources.properties,
     });
 
     // Decode ToUnicode CMaps for each font; failures degrade gracefully.

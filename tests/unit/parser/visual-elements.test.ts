@@ -13,6 +13,7 @@ function emptyResources(): PdfResolvedResources {
     colorSpaces: {},
     patterns: {},
     shadings: {},
+    properties: {},
     procSets: [],
   };
 }
