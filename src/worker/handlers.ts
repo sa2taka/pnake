@@ -30,15 +30,38 @@ interface State {
   reader: ByteReader;
   objects: Map<ObjectId, IndirectObject>;
   analysisJson: LoadResult;
+  sessionId: number;
+}
+
+/**
+ * Raised when a handler discovers, after returning from an `await`, that
+ * a newer `load()` has superseded the document it was operating on. The
+ * worker dispatcher returns this as a structured error to the main
+ * thread, where the WorkerClient settles only the active request — old
+ * requests already have an in-flight rejection of their own.
+ */
+export class StaleSessionError extends Error {
+  readonly name = "StaleSessionError";
+  constructor(operation: string, oldSession: number, newSession: number) {
+    super(
+      `Operation ${operation} dropped: session ${oldSession} was superseded by ${newSession}.`,
+    );
+  }
 }
 
 export class ParserState {
   private state?: State;
+  /** Monotonic id bumped on every load() entry (not completion). */
+  private currentSessionId = 0;
   private decodedCache = new LruCache<ObjectId, Uint8Array>(32);
 
   async load(buffer: ArrayBuffer): Promise<LoadResult> {
+    const session = ++this.currentSessionId;
     const bytes = new Uint8Array(buffer);
     const { analysis, objects, reader } = await parsePdf(bytes);
+    if (session !== this.currentSessionId) {
+      throw new StaleSessionError("load", session, this.currentSessionId);
+    }
     const structTreeRoot = analysis.documentTree?.structTreeRootRef;
     const structTree = structTreeRoot
       ? buildStructTree({ structTreeRootRef: structTreeRoot, objects })
@@ -51,6 +74,7 @@ export class ParserState {
       reader,
       objects,
       analysisJson: result,
+      sessionId: session,
     };
     this.decodedCache.clear();
     return this.state.analysisJson;
@@ -77,6 +101,7 @@ export class ParserState {
 
   async getStream(objectId: ObjectId, mode: "raw" | "decoded"): Promise<StreamResult> {
     const s = this.require();
+    const session = s.sessionId;
     const obj = s.objects.get(objectId);
     if (!obj) throw new Error(`Object not found: ${objectId}`);
     if (obj.value.kind !== "stream") {
@@ -104,6 +129,9 @@ export class ParserState {
       };
     }
     const decoded = await this.decodeCached(objectId, raw, handle.filters, obj.value.dict);
+    if (session !== this.currentSessionId) {
+      throw new StaleSessionError("getStream", session, this.currentSessionId);
+    }
     const transfer = decoded.slice();
     return {
       bytes: transfer.buffer,
@@ -127,6 +155,7 @@ export class ParserState {
 
   async getPageOperations(pageNumber: number): Promise<PageOperationsResult> {
     const s = this.require();
+    const session = s.sessionId;
     const page = s.analysisJson.analysis.pages[pageNumber - 1];
     if (!page) throw new Error(`Page ${pageNumber} not found`);
 
@@ -205,6 +234,10 @@ export class ParserState {
       resources,
       fontCMaps,
     });
+
+    if (session !== this.currentSessionId) {
+      throw new StaleSessionError("getPageOperations", session, this.currentSessionId);
+    }
 
     return {
       pageNumber,
