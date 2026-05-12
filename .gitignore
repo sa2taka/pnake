@@ -1,0 +1,33 @@
+# override user-global ignore so project docs are tracked
+!docs/
+!docs/**
+
+node_modules
+dist
+dist-ssr
+*.local
+.vite
+.turbo
+
+# editors
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+
+# test
+coverage
+test-results
+playwright-report
+playwright/.cache
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# system
+.env
+.env.local
