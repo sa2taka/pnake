@@ -66,26 +66,6 @@ describe("WorkerClient", () => {
     expect([a, b, c]).toEqual(["a", "b", "c"]);
   });
 
-  it("forwards progress events to the caller", async () => {
-    const fake = new FakeWorker();
-    const client = new WorkerClient(fake as unknown as Worker);
-    const progress: number[] = [];
-
-    // Custom responder that dispatches progress synchronously, then schedules
-    // the final pong to arrive after the progress event.
-    fake.responder = (req) => {
-      fake.dispatchEvent(
-        new MessageEvent("message", {
-          data: { id: req.id, progress: 0.5, phase: "loading" } satisfies WorkerResponse,
-        }),
-      );
-      return { id: req.id, ok: true, type: "ping", result: null };
-    };
-
-    await client.ping(null, { onProgress: (p) => progress.push(p) });
-    expect(progress).toEqual([0.5]);
-  });
-
   it("supports cancellation via AbortSignal", async () => {
     const { client, fake } = makeClient();
     fake.responder = () => undefined; // never responds

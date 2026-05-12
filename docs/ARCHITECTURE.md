@@ -196,9 +196,9 @@ interface RpcMethods {
 }
 ```
 
-cancel と progress は out-of-band envelope。現状 `cancel` は client が pending Promise
-を reject するだけで worker 側は no-op（要改修）。`onProgress` は surface だけ用意済みで
-どちらの実装も発火していない（将来の streaming 用に置いている）。
+`cancel` だけが out-of-band envelope。現状 client が pending Promise を reject するだけで
+worker 側は no-op（要改修）。進捗通知のような streaming は今はサポートせず、必要に
+なったら明示的に検討する。
 
 ## 関連ドキュメント
 

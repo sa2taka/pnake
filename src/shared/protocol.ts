@@ -4,8 +4,9 @@
  *
  * The single source of truth is `RpcMethods` — adding a new method is one
  * entry, not five hand-rolled union arms. Request and success envelopes
- * are derived; only the `cancel` and `progress` wires live outside the
- * method map because they don't fit a "one request, one result" shape.
+ * are derived; only the out-of-band `cancel` request lives outside the
+ * map because it targets another request by id rather than returning its
+ * own result.
  */
 
 import type {
@@ -92,16 +93,7 @@ export interface WorkerError {
 
 export type WorkerErrorResponse = { id: number; ok: false; error: WorkerError };
 
-export type WorkerProgressResponse = {
-  id: number;
-  progress: number;
-  phase?: string;
-};
-
-export type WorkerResponse =
-  | RpcSuccess
-  | WorkerErrorResponse
-  | WorkerProgressResponse;
+export type WorkerResponse = RpcSuccess | WorkerErrorResponse;
 
 // =============================================================================
 // Error serialization

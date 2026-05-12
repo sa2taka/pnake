@@ -20,14 +20,17 @@ import type {
 import type { ObjectId, PdfObjectDetail } from "../shared/ir-types";
 
 export interface CallOptions {
-  onProgress?: (progress: number, phase?: string) => void;
+  /**
+   * Aborting the signal rejects the caller's Promise with AbortError and
+   * sends a cancel envelope to the worker. The worker today ignores it —
+   * the caller stops waiting, but the in-flight work keeps running.
+   */
   signal?: AbortSignal;
 }
 
 type Pending = {
   resolve: (value: unknown) => void;
   reject: (reason: unknown) => void;
-  onProgress?: (progress: number, phase?: string) => void;
 };
 
 export class WorkerClient {
@@ -117,7 +120,6 @@ export class WorkerClient {
         // entry shape; the cast here is the one inherent variance point.
         resolve: resolve as (value: unknown) => void,
         reject,
-        onProgress: options.onProgress,
       });
 
       if (options.signal) {
@@ -156,12 +158,6 @@ export class WorkerClient {
     const msg = event.data;
     const entry = this.pending.get(msg.id);
     if (!entry) return;
-
-    if ("progress" in msg) {
-      entry.onProgress?.(msg.progress, msg.phase);
-      return;
-    }
-
     this.pending.delete(msg.id);
     if (msg.ok) {
       entry.resolve(msg.result);

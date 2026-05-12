@@ -23,18 +23,14 @@ import { WorkerClient } from "../workerClient";
 /**
  * Transport-agnostic call options.
  *
- * The Worker implementation forwards these to WorkerClient, which sends
- * an out-of-band `cancel` message when the signal aborts. (Today the
- * worker treats `cancel` as a no-op — the caller's promise rejects, but
- * the worker keeps running.)
- *
- * The in-process implementation honours `signal` by throwing AbortError
- * at the natural async boundaries. `onProgress` is reserved for future
- * streaming progress; neither implementation invokes it yet.
+ * The Worker implementation forwards `signal` to WorkerClient, which
+ * sends an out-of-band `cancel` envelope on abort. The worker today
+ * treats `cancel` as a no-op, so the caller's Promise rejects but the
+ * in-flight work keeps running. The in-process implementation honours
+ * `signal` by throwing AbortError at the natural async boundaries.
  */
 export interface CallOptions {
   signal?: AbortSignal;
-  onProgress?: (progress: number, phase?: string) => void;
 }
 
 export interface ParserService {

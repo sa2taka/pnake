@@ -45,11 +45,9 @@ describe("ParserService CallOptions", () => {
     ).rejects.toMatchObject({ name: "AbortError" });
   });
 
-  it("InProcess accepts options without a signal (no-op)", async () => {
+  it("InProcess accepts an empty options bag (no signal)", async () => {
     const parser = new InProcessParserService();
-    const { analysis } = await parser.load(tinyPdf(), "tiny.pdf", {
-      onProgress: () => undefined,
-    });
+    const { analysis } = await parser.load(tinyPdf(), "tiny.pdf", {});
     expect(analysis.pages).toHaveLength(1);
   });
 });
