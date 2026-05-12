@@ -35,7 +35,7 @@ interface State {
   bytes: Uint8Array;
   reader: ByteReader;
   objects: Map<ObjectId, IndirectObject>;
-  analysisJson: LoadResult;
+  analysis: LoadResult;
   sessionId: number;
 }
 
@@ -79,21 +79,21 @@ export class ParserSession {
       bytes,
       reader,
       objects,
-      analysisJson: result,
+      analysis: result,
       sessionId: session,
     };
     this.decodedCache.clear();
-    return this.state.analysisJson;
+    return this.state.analysis;
   }
 
   /** Re-emit the manifest (after the original transferable was consumed). */
   getAnalysis(): LoadResult {
-    return this.require().analysisJson;
+    return this.require().analysis;
   }
 
   getObjectDetail(objectId: ObjectId): PdfObjectDetail {
     const s = this.require();
-    const summary = s.analysisJson.analysis.objectsIndex[objectId];
+    const summary = s.analysis.analysis.objectsIndex[objectId];
     const obj = s.objects.get(objectId);
     if (!summary || !obj) {
       throw new Error(`Object not found: ${objectId}`);
@@ -111,39 +111,30 @@ export class ParserSession {
     const obj = s.objects.get(objectId);
     if (!obj) throw new Error(`Object not found: ${objectId}`);
     if (obj.value.kind !== "stream") {
+      // Compressed objects (from ObjStm) and non-stream values land here:
+      // the caller should fetch them via getObjectDetail instead.
       throw new Error(`Object ${objectId} is not a stream`);
     }
-    if (!obj.range || obj.value.kind !== "stream") {
-      throw new Error(`Object ${objectId} has no stream range`);
-    }
-    // Compressed objects share the parent stream's range — abort cleanly.
-    if (!objectHasStreamPosition(obj, s.bytes)) {
-      throw new Error(`Object ${objectId} is compressed; access via its parent stream`);
+    if (!obj.streamRange) {
+      throw new Error(`Object ${objectId} stream has no range`);
     }
 
-    const handle = obj.value.handle;
-    const raw = s.bytes.subarray(
-      streamRangeStart(obj, s.bytes),
-      streamRangeStart(obj, s.bytes) + handle.length,
-    );
+    const raw = s.bytes.subarray(obj.streamRange.start, obj.streamRange.end);
     if (mode === "raw") {
       const copy = raw.slice();
-      return {
-        bytes: copy.buffer,
-        decoded: false,
-        truncated: false,
-      };
+      return { bytes: copy.buffer, decoded: false, truncated: false };
     }
-    const decoded = await this.decodeCached(objectId, raw, handle.filters, obj.value.dict);
+    const decoded = await this.decodeCached(
+      objectId,
+      raw,
+      obj.value.handle.filters,
+      obj.value.dict,
+    );
     if (session !== this.currentSessionId) {
       throw new StaleSessionError("getStream", session, this.currentSessionId);
     }
     const transfer = decoded.slice();
-    return {
-      bytes: transfer.buffer,
-      decoded: true,
-      truncated: false,
-    };
+    return { bytes: transfer.buffer, decoded: true, truncated: false };
   }
 
   private async decodeCached(
@@ -162,7 +153,7 @@ export class ParserSession {
   async getPageOperations(pageNumber: number): Promise<PageOperationsResult> {
     const s = this.require();
     const session = s.sessionId;
-    const page = s.analysisJson.analysis.pages[pageNumber - 1];
+    const page = s.analysis.analysis.pages[pageNumber - 1];
     if (!page) throw new Error(`Page ${pageNumber} not found`);
 
     // /Contents may be missing, a single ref, or an array of refs. We
@@ -180,7 +171,7 @@ export class ParserSession {
         });
         continue;
       }
-      if (obj.value.kind !== "stream") {
+      if (obj.value.kind !== "stream" || !obj.streamRange) {
         allWarnings.push({
           id: `warn:contents-not-stream:${ref}`,
           severity: "warn",
@@ -190,8 +181,7 @@ export class ParserSession {
         continue;
       }
       const dict = obj.value.dict;
-      const start = streamRangeStart(obj, s.bytes);
-      const raw = s.bytes.subarray(start, start + obj.value.handle.length);
+      const raw = s.bytes.subarray(obj.streamRange.start, obj.streamRange.end);
       try {
         const decoded = await decodeStream(raw, extractFilters(dict), extractDecodeParms(dict));
         allBytes.push(decoded);
@@ -257,13 +247,12 @@ export class ParserSession {
     };
   }
 
-  private async decodeStreamObject(objectId: string): Promise<Uint8Array | null> {
+  private async decodeStreamObject(objectId: ObjectId): Promise<Uint8Array | null> {
     const s = this.require();
     const obj = s.objects.get(objectId);
-    if (!obj || obj.value.kind !== "stream") return null;
+    if (!obj || obj.value.kind !== "stream" || !obj.streamRange) return null;
     const dict = obj.value.dict;
-    const start = streamRangeStart(obj, s.bytes);
-    const raw = s.bytes.subarray(start, start + obj.value.handle.length);
+    const raw = s.bytes.subarray(obj.streamRange.start, obj.streamRange.end);
     return this.decodeCached(objectId, raw, extractFilters(dict), dict);
   }
 
@@ -295,28 +284,6 @@ function rawTextOf(obj: IndirectObject, bytes: Uint8Array): string {
   return text;
 }
 
-function objectHasStreamPosition(obj: IndirectObject, _bytes: Uint8Array): boolean {
-  // A compressed object lives inside another stream and has no usable
-  // file offset of its own. Identify it by checking whether the indirect
-  // header sits at obj.range.start in the file.
-  return obj.range.end > obj.range.start;
-}
-
-function streamRangeStart(obj: IndirectObject, bytes: Uint8Array): number {
-  // The handle stores length only, not the byte offset. For now, scan
-  // forward from the obj header for the "stream" keyword and skip its
-  // newline. We rely on the fact that buildManifest already parsed the
-  // object so the structure is well-formed.
-  const start = obj.range.start;
-  const slice = bytes.subarray(start, obj.range.end);
-  const i = indexOfSubsequence(slice, [0x73, 0x74, 0x72, 0x65, 0x61, 0x6d]); // "stream"
-  if (i === -1) throw new Error("stream keyword not located");
-  let pos = i + 6;
-  if (slice[pos] === 0x0d && slice[pos + 1] === 0x0a) pos += 2;
-  else if (slice[pos] === 0x0a) pos += 1;
-  return start + pos;
-}
-
 function concatBytes(parts: Uint8Array[]): Uint8Array {
   if (parts.length === 1) return parts[0]!;
   const total = parts.reduce((a, b) => a + b.length, 0);
@@ -327,14 +294,4 @@ function concatBytes(parts: Uint8Array[]): Uint8Array {
     pos += p.length;
   }
   return out;
-}
-
-function indexOfSubsequence(haystack: Uint8Array, needle: number[]): number {
-  outer: for (let i = 0; i + needle.length <= haystack.length; i++) {
-    for (let j = 0; j < needle.length; j++) {
-      if (haystack[i + j] !== needle[j]) continue outer;
-    }
-    return i;
-  }
-  return -1;
 }
