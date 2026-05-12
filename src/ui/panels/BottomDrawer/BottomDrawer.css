@@ -6,11 +6,76 @@
   overflow: hidden;
 }
 
-.bottomdrawer-empty {
-  flex: 1;
+.bottomdrawer-tabs {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 2px;
+}
+
+.bottomdrawer-tab {
+  padding: 2px 8px;
+  font-size: var(--fz-xs);
+  color: var(--fg-faint);
+  border-radius: 3px;
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.bottomdrawer-tab[aria-selected="true"] {
+  background: var(--bg-row-selected);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.bottomdrawer-body {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+}
+
+.bottomdrawer-empty {
+  margin: 0;
+  padding: 8px;
   color: var(--fg-faint);
   font-size: var(--fz-sm);
+}
+
+.bottomdrawer-error {
+  color: var(--danger);
+}
+
+.bottomdrawer-hex {
+  font-family: var(--font-mono);
+  font-size: var(--fz-sm);
+}
+
+.bottomdrawer-hex pre {
+  margin: 0;
+}
+
+.bottomdrawer-hex-row {
+  display: flex;
+  gap: 16px;
+  padding: 1px 4px;
+}
+
+.bottomdrawer-hex-offset {
+  color: var(--fg-faint);
+  flex-shrink: 0;
+}
+
+.bottomdrawer-hex-bytes {
+  color: var(--fg-default);
+  white-space: pre;
+}
+
+.bottomdrawer-hex-ascii {
+  color: var(--fg-subtle);
+  white-space: pre;
+}
+
+.bottomdrawer-hex-truncated {
+  color: var(--fg-faint);
+  font-style: italic;
+  padding-top: 4px;
 }

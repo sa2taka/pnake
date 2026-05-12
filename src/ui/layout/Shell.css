@@ -137,3 +137,7 @@
 .statusbar-spacer {
   flex: 1;
 }
+
+.statusbar-warning {
+  color: var(--warning);
+}

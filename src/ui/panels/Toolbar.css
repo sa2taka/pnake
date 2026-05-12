@@ -72,3 +72,27 @@
 .toolbar-select:disabled {
   color: var(--fg-disabled);
 }
+
+.toolbar-filename {
+  font-family: var(--font-mono);
+  font-size: var(--fz-sm);
+  color: var(--fg-subtle);
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar-status {
+  color: var(--fg-faint);
+  font-size: var(--fz-sm);
+}
+
+.toolbar-status-error {
+  color: var(--danger);
+}
+
+.toolbar-warning {
+  color: var(--warning);
+  border-color: var(--warning);
+}

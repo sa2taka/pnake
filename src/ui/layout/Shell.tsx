@@ -5,6 +5,7 @@ import { RenderPanel } from "../panels/RenderPanel";
 import { DetailPanel } from "../panels/DetailPanel";
 import { BottomDrawer } from "../panels/BottomDrawer";
 import { Splitter } from "./Splitter";
+import { useApp } from "../state/AppContext";
 import "./Shell.css";
 
 const STORAGE_KEY = "pnake.layout";
@@ -13,7 +14,6 @@ interface LayoutState {
   leftW: number;
   rightW: number;
   bottomH: number;
-  bottomOpen: boolean;
 }
 
 function loadLayout(): LayoutState {
@@ -30,7 +30,6 @@ const defaultLayout: LayoutState = {
   leftW: 280,
   rightW: 320,
   bottomH: 200,
-  bottomOpen: false,
 };
 
 function saveLayout(layout: LayoutState): void {
@@ -42,7 +41,9 @@ function saveLayout(layout: LayoutState): void {
 }
 
 export function Shell(): JSX.Element {
+  const { state, dispatch } = useApp();
   const [layout, setLayout] = useState<LayoutState>(loadLayout);
+  const bottomOpen = state.bottomOpen;
 
   const update = (patch: Partial<LayoutState>) => {
     setLayout((prev) => {
@@ -57,15 +58,15 @@ export function Shell(): JSX.Element {
       className="shell"
       style={{
         gridTemplateColumns: `${layout.leftW}px var(--splitter-w) 1fr var(--splitter-w) ${layout.rightW}px`,
-        gridTemplateRows: layout.bottomOpen
+        gridTemplateRows: bottomOpen
           ? `var(--toolbar-h) 1fr var(--splitter-w) ${layout.bottomH}px var(--statusbar-h)`
           : `var(--toolbar-h) 1fr 0 0 var(--statusbar-h)`,
       }}
     >
       <div className="shell-toolbar">
         <Toolbar
-          bottomOpen={layout.bottomOpen}
-          onToggleBottom={() => update({ bottomOpen: !layout.bottomOpen })}
+          bottomOpen={bottomOpen}
+          onToggleBottom={() => dispatch({ type: "toggleBottom" })}
         />
       </div>
 
@@ -93,7 +94,7 @@ export function Shell(): JSX.Element {
         <DetailPanel />
       </div>
 
-      {layout.bottomOpen && (
+      {bottomOpen && (
         <>
           <Splitter
             orientation="horizontal"
@@ -117,12 +118,39 @@ export function Shell(): JSX.Element {
 }
 
 function StatusBar(): JSX.Element {
+  const { state } = useApp();
+  const a = state.analysis;
   return (
     <div className="statusbar">
       <span className="statusbar-segment">pnake</span>
-      <span className="statusbar-segment statusbar-muted">no file loaded</span>
+      {a ? (
+        <>
+          <span className="statusbar-segment statusbar-muted">
+            v{a.fileInfo.pdfVersion}
+          </span>
+          <span className="statusbar-segment statusbar-muted">
+            {formatBytes(a.fileInfo.byteSize)}
+          </span>
+          <span className="statusbar-segment statusbar-muted">
+            {Object.keys(a.objectsIndex).length} objs / {a.pages.length} pages
+          </span>
+          {a.warnings.length > 0 && (
+            <span className="statusbar-segment statusbar-warning">
+              ⚠ {a.warnings.length}
+            </span>
+          )}
+        </>
+      ) : (
+        <span className="statusbar-segment statusbar-muted">no file loaded</span>
+      )}
       <span className="statusbar-spacer" />
       <span className="statusbar-segment statusbar-muted">⌘B drawer</span>
     </div>
   );
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(2)} MB`;
 }

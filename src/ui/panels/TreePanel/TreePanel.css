@@ -12,9 +12,122 @@
   font-size: var(--fz-sm);
 }
 
+.treepanel-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.treepanel-filter {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--bg-panel);
+}
+
+.treepanel-filter input {
+  width: 100%;
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: var(--fz-sm);
+  color: var(--fg-default);
+  background: var(--bg-row);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+}
+
+.treepanel-filter input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .treepanel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   flex: 1;
   overflow: auto;
   font-size: var(--fz-sm);
+}
+
+.treepanel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  min-height: var(--row-h-compact);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.treepanel-row:hover {
+  background: var(--bg-row-hover);
+}
+
+.treepanel-row[data-selected="true"] {
+  background: var(--bg-row-selected);
+  border-left-color: var(--accent);
+}
+
+.treepanel-row[data-tone="danger"] .treepanel-row-id {
+  color: var(--danger);
+}
+
+.treepanel-row[data-tone="warning"] .treepanel-row-id {
+  color: var(--warning);
+}
+
+.treepanel-row-id {
   font-family: var(--font-mono);
+  color: var(--fg-subtle);
+  font-size: var(--fz-sm);
+  min-width: 56px;
+}
+
+.treepanel-row-hint {
+  color: var(--fg-faint);
+  font-family: var(--font-mono);
+  font-size: var(--fz-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.treepanel-chip {
+  font-size: var(--fz-xs);
+  font-family: var(--font-mono);
+  padding: 0 6px;
+  border-radius: 3px;
+  background: var(--bg-row);
+  color: var(--fg-subtle);
+  border: 1px solid var(--hairline);
+  line-height: 16px;
+}
+
+.treepanel-chip[data-kind="catalog"] {
+  color: #c08af9;
+}
+.treepanel-chip[data-kind="pages"],
+.treepanel-chip[data-kind="page"] {
+  color: #79c0ff;
+}
+.treepanel-chip[data-kind="font"],
+.treepanel-chip[data-kind="fontDescriptor"],
+.treepanel-chip[data-kind="encoding"] {
+  color: #f7c873;
+}
+.treepanel-chip[data-kind="xobjectImage"] {
+  color: #7ee787;
+}
+.treepanel-chip[data-kind="xobjectForm"] {
+  color: #9ee487;
+}
+.treepanel-chip[data-kind="contentStream"] {
+  color: #d2a8ff;
+}
+.treepanel-chip[data-kind="objectStream"],
+.treepanel-chip[data-kind="xrefStream"] {
+  color: #8b949e;
 }
