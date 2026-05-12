@@ -50,6 +50,24 @@
   font-size: var(--fz-sm);
 }
 
+.treepanel-virtual {
+  flex: 1;
+  overflow: auto;
+  font-size: var(--fz-sm);
+  position: relative;
+}
+
+.treepanel-virtual-inner {
+  position: relative;
+  width: 100%;
+}
+
+.treepanel-virtual-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
 .treepanel-row {
   display: flex;
   align-items: center;

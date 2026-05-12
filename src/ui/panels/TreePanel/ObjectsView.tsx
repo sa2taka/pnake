@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
 import { useApp } from "../../state/AppContext";
+import { useVirtualList } from "../../hooks/useVirtualList";
 import type { PdfObjectKind, PdfObjectSummary } from "../../../shared/ir-types";
+
+const ROW_HEIGHT = 24;
 
 export function ObjectsView(): JSX.Element {
   const { state, dispatch } = useApp();
@@ -21,6 +24,13 @@ export function ObjectsView(): JSX.Element {
     );
   }, [state.analysis, filter]);
 
+  const { containerRef, range, totalHeight } = useVirtualList<HTMLDivElement>(
+    objects.length,
+    ROW_HEIGHT,
+  );
+
+  const visible = objects.slice(range.start, range.end);
+
   return (
     <div className="treepanel-body">
       <div className="treepanel-filter">
@@ -33,18 +43,31 @@ export function ObjectsView(): JSX.Element {
           aria-label="Filter objects"
         />
       </div>
-      <ul className="treepanel-list" role="tree" aria-label="PDF objects">
-        {objects.map((obj) => (
-          <ObjectRow
-            key={obj.id}
-            obj={obj}
-            selected={obj.id === state.selectedNodeId}
-            onSelect={() =>
-              dispatch({ type: "select", nodeId: obj.id, origin: "tree" })
-            }
-          />
-        ))}
-      </ul>
+      <div
+        ref={containerRef}
+        className="treepanel-virtual"
+        data-testid="objects-virtual"
+        role="tree"
+        aria-label="PDF objects"
+      >
+        <div className="treepanel-virtual-inner" style={{ height: totalHeight }}>
+          {visible.map((obj, i) => (
+            <div
+              key={obj.id}
+              className="treepanel-virtual-row"
+              style={{ top: (range.start + i) * ROW_HEIGHT, height: ROW_HEIGHT }}
+            >
+              <ObjectRow
+                obj={obj}
+                selected={obj.id === state.selectedNodeId}
+                onSelect={() =>
+                  dispatch({ type: "select", nodeId: obj.id, origin: "tree" })
+                }
+              />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -57,7 +80,7 @@ interface ObjectRowProps {
 
 function ObjectRow({ obj, selected, onSelect }: ObjectRowProps): JSX.Element {
   return (
-    <li
+    <div
       role="treeitem"
       aria-selected={selected}
       data-selected={selected}
@@ -75,7 +98,7 @@ function ObjectRow({ obj, selected, onSelect }: ObjectRowProps): JSX.Element {
       <span className="treepanel-row-id">{`${obj.number} ${obj.generation}`}</span>
       <KindChip kind={obj.type} stream={obj.hasStream} />
       {obj.hint && <span className="treepanel-row-hint">{obj.hint}</span>}
-    </li>
+    </div>
   );
 }
 
