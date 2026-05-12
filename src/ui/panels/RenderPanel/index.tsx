@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PanelHeader } from "../PanelHeader";
 import { useApp } from "../../state/AppContext";
-import { renderPage } from "../../../pdfjs/renderer";
+import { renderPageWithHandle } from "../../../pdfjs/renderer";
 import { RenderOverlay } from "../../overlay/RenderOverlay";
 import "./RenderPanel.css";
 
@@ -13,6 +13,8 @@ export function RenderPanel(): JSX.Element {
   const pageOps = state.pageOperations;
 
   // Render the page on canvas whenever the file or page changes.
+  // renderPageWithHandle gives us a cancel() that aborts the in-flight
+  // PDF.js render task, so rapid page navigation doesn't paint stale frames.
   useEffect(() => {
     const bytes = state.fileBytes;
     if (!bytes || !canvasRef.current) {
@@ -21,24 +23,27 @@ export function RenderPanel(): JSX.Element {
     }
     setStatus("rendering…");
     setPageSize(null);
-    let cancelled = false;
-    void renderPage({
+    const handle = renderPageWithHandle({
       bytes,
       pageNumber: state.currentPage,
       canvas: canvasRef.current,
       scale: 1,
-    })
+    });
+    let cancelled = false;
+    handle.result
       .then((info) => {
         if (cancelled) return;
         setStatus("");
         setPageSize({ width: info.width, height: info.height });
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         if (cancelled) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
         setStatus(err instanceof Error ? err.message : String(err));
       });
     return () => {
       cancelled = true;
+      handle.cancel();
     };
   }, [state.fileBytes, state.currentPage]);
 
