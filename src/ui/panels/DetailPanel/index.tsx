@@ -53,12 +53,12 @@ export function DetailPanel(): JSX.Element {
         subtitle={detail?.id ?? operation?.id}
         actions={
           detail || operation ? (
-            <div className="detailpanel-tabs" role="tablist">
+            <div className="detailpanel-tabs" role="group" aria-label="Detail view">
               {(["human", "technical", "raw"] as const).map((t) => (
                 <button
                   key={t}
-                  role="tab"
-                  aria-selected={tab === t}
+                  type="button"
+                  aria-pressed={tab === t}
                   className="detailpanel-tab"
                   onClick={() => setTab(t)}
                 >

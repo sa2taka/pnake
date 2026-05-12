@@ -49,8 +49,11 @@ export function Splitter({
 
   return (
     <div
-      role="separator"
-      aria-orientation={orientation}
+      // No role="separator": that role implies a focusable resize affordance
+      // with aria-valuenow / arrow-key support, which we do not implement.
+      // The element remains a draggable visual divider — pointer-only by
+      // design until we add a keyboard mode.
+      aria-hidden="true"
       className={
         orientation === "vertical"
           ? "splitter-v"

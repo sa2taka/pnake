@@ -6,7 +6,7 @@ export function FileStructureView(): JSX.Element {
   if (!fs) return <div className="treepanel-empty">No file structure</div>;
 
   return (
-    <ul className="treepanel-list" role="tree" aria-label="File structure">
+    <ul className="treepanel-list" role="listbox" aria-label="File structure">
       <li className="treepanel-row treepanel-row-header">
         <span className="treepanel-row-hint">{fs.header.raw || "(missing header)"}</span>
       </li>

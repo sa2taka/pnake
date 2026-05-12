@@ -47,7 +47,7 @@ export function ObjectsView(): JSX.Element {
         ref={containerRef}
         className="treepanel-virtual"
         data-testid="objects-virtual"
-        role="tree"
+        role="listbox"
         aria-label="PDF objects"
       >
         <div className="treepanel-virtual-inner" style={{ height: totalHeight }}>
@@ -81,7 +81,7 @@ interface ObjectRowProps {
 function ObjectRow({ obj, selected, onSelect }: ObjectRowProps): JSX.Element {
   return (
     <div
-      role="treeitem"
+      role="option"
       aria-selected={selected}
       data-selected={selected}
       data-testid={`tree-row-${obj.id}`}

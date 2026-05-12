@@ -17,7 +17,7 @@ export function StructureView(): JSX.Element {
   return (
     <ul
       className="treepanel-list"
-      role="tree"
+      role="listbox"
       aria-label="PDF logical structure"
     >
       <StructNode

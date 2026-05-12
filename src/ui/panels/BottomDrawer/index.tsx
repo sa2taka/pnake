@@ -21,12 +21,12 @@ export function BottomDrawer(): JSX.Element {
       <PanelHeader
         title="Drawer"
         actions={
-          <div className="bottomdrawer-tabs" role="tablist">
+          <div className="bottomdrawer-tabs" role="group" aria-label="Drawer view">
             {TABS.map((t) => (
               <button
                 key={t.id}
-                role="tab"
-                aria-selected={tab === t.id}
+                type="button"
+                aria-pressed={tab === t.id}
                 className="bottomdrawer-tab"
                 onClick={() => dispatch({ type: "setBottomTab", tab: t.id })}
               >

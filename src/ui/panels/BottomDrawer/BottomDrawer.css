@@ -21,7 +21,7 @@
   background: transparent;
 }
 
-.bottomdrawer-tab[aria-selected="true"] {
+.bottomdrawer-tab[aria-pressed="true"] {
   background: var(--bg-row-selected);
   border-color: var(--accent);
   color: var(--accent);

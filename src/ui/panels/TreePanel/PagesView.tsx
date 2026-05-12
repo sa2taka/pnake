@@ -7,7 +7,7 @@ export function PagesView(): JSX.Element {
     return <div className="treepanel-empty">No pages.</div>;
   }
   return (
-    <ul className="treepanel-list" role="tree" aria-label="Pages">
+    <ul className="treepanel-list" role="listbox" aria-label="Pages">
       {pages.map((page) => (
         <li
           key={page.pageNumber}

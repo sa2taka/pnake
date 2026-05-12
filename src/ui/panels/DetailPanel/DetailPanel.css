@@ -38,7 +38,7 @@
   background: transparent;
 }
 
-.detailpanel-tab[aria-selected="true"] {
+.detailpanel-tab[aria-pressed="true"] {
   background: var(--bg-row-selected);
   border-color: var(--accent);
   color: var(--accent);

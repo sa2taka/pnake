@@ -38,7 +38,7 @@ export function ContentView(): JSX.Element {
   return (
     <ul
       className="treepanel-list"
-      role="tree"
+      role="listbox"
       aria-label={`Content of page ${state.currentPage}`}
     >
       {rows.map(({ op, depth: rowDepth }) => {

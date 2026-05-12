@@ -153,7 +153,10 @@ test.describe("pnake — load tracemonkey.pdf", () => {
     await page.locator('[data-testid^="tree-op-"]').first().click();
 
     const detail = page.getByTestId("detail-panel");
-    const humanTab = detail.getByRole("tab", { name: /Human/i });
+    // The Human / Technical / Raw "tabs" are toggle buttons with aria-pressed
+    // (not a WAI-ARIA tab pattern, since we don't implement tabpanel + arrow
+    // navigation). Match by accessible name.
+    const humanTab = detail.getByRole("button", { name: /Human/i });
     await humanTab.click();
     // The explanation dictionary returns Japanese text for known operators —
     // the tracemonkey first content op is almost always "q".

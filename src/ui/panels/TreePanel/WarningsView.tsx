@@ -8,7 +8,7 @@ export function WarningsView(): JSX.Element {
     return <div className="treepanel-empty">No warnings.</div>;
   }
   return (
-    <ul className="treepanel-list" role="tree" aria-label="Warnings">
+    <ul className="treepanel-list" role="listbox" aria-label="Warnings">
       {warnings.map((w) => (
         <WarningRow key={w.id} warning={w} />
       ))}
