@@ -16,11 +16,11 @@ describe("ByteReader", () => {
     expect(r.pos).toBe(2);
   });
 
-  it("returns -1 at EOF without advancing past it", () => {
+  it("returns undefined at EOF without advancing past it", () => {
     const r = new ByteReader(toBytes("X"));
     expect(r.read()).toBe(0x58);
     expect(r.eof).toBe(true);
-    expect(r.read()).toBe(-1);
+    expect(r.read()).toBeUndefined();
     expect(r.pos).toBe(1);
   });
 

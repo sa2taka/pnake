@@ -44,7 +44,7 @@ export async function parseXrefStream(
   if (!obj.streamRange) {
     throw new Error(`xref stream object ${obj.id} has no stream range`);
   }
-  const raw = reader.slice(obj.streamRange.start, obj.streamRange.end);
+  const raw = reader.subview(obj.streamRange.start, obj.streamRange.end);
 
   let decoded: Uint8Array;
   try {

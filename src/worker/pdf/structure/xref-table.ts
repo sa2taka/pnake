@@ -95,7 +95,7 @@ export function parseXrefAndTrailer(reader: ByteReader, offset: number): XrefAnd
         });
         break;
       }
-      const slice = reader.slice(entryStart, entryStart + 20);
+      const slice = reader.subview(entryStart, entryStart + 20);
       const parsed = parseXrefEntry(slice, first + i, entryStart);
       if (parsed.warning) warnings.push(parsed.warning);
       entries.push(parsed.entry);

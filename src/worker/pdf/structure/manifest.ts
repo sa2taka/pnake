@@ -192,7 +192,7 @@ function readHeader(
   const verStart = reader.pos;
   reader.skipWhile((b) => b !== 0x0a && b !== 0x0d);
   const verEnd = reader.pos;
-  const version = asciiString(reader.slice(verStart, verEnd)).trim();
+  const version = asciiString(reader.subview(verStart, verEnd)).trim();
   return {
     version,
     range: { start: sigIdx, end: verEnd },
@@ -796,7 +796,7 @@ function pickFieldType(name: string | undefined): PdfFormFieldType {
 function detectLinearized(reader: ByteReader): boolean {
   // Linearized PDFs have a "/Linearized" dictionary near the start.
   const scanEnd = Math.min(2048, reader.end);
-  const bytes = reader.slice(0, scanEnd);
+  const bytes = reader.subview(0, scanEnd);
   return asciiString(bytes).includes("/Linearized");
 }
 

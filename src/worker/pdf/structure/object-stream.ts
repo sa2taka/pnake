@@ -55,7 +55,7 @@ export async function parseObjectStream(
   if (n == null || n < 0 || first == null || first < 0) {
     throw new Error(`Object ${obj.id} ObjStm missing /N or /First`);
   }
-  const raw = reader.slice(obj.streamRange.start, obj.streamRange.end);
+  const raw = reader.subview(obj.streamRange.start, obj.streamRange.end);
   const decoded = await decodeStream(raw, extractFilters(dict), extractDecodeParms(dict));
   if (first > decoded.length) {
     throw new Error(`Object ${obj.id} ObjStm /First out of range`);

@@ -119,7 +119,7 @@ export class Lexer {
     return {
       kind: "comment",
       range: { start, end: textEnd },
-      text: asciiString(this.reader.slice(textStart, textEnd)),
+      text: asciiString(this.reader.subview(textStart, textEnd)),
     };
   }
 
@@ -170,7 +170,7 @@ export class Lexer {
 
     while (!this.reader.eof && depth > 0) {
       const b = this.reader.read();
-      if (b === -1) break;
+      if (b === undefined) break;
       if (b === CHAR_LPAREN) {
         depth++;
         out.push(b);
@@ -187,7 +187,7 @@ export class Lexer {
       }
       if (b === CHAR_BACKSLASH) {
         const e = this.reader.read();
-        if (e === -1) break;
+        if (e === undefined) break;
         switch (e) {
           case 0x6e:
             out.push(CHAR_LF);
@@ -385,7 +385,7 @@ export class Lexer {
         message: `Unexpected byte 0x${(this.reader.bytes[start] ?? 0).toString(16)}`,
       };
     }
-    const word = asciiString(this.reader.slice(begin, end));
+    const word = asciiString(this.reader.subview(begin, end));
     switch (word) {
       case "true":
         return { kind: "true", range: { start, end } };

@@ -42,13 +42,22 @@ export class ByteReader {
     return this.bytes[this.cursor + offset];
   }
 
-  read(): number {
-    if (this.eof) return -1;
-    const byte = this.bytes[this.cursor++];
-    return byte ?? -1;
+  /**
+   * Read and consume one byte, or return `undefined` at EOF.
+   * The EOF signal is the same as `peek()` — both return `undefined`,
+   * not the `-1` sentinel that some C-flavoured APIs use.
+   */
+  read(): number | undefined {
+    if (this.eof) return undefined;
+    return this.bytes[this.cursor++];
   }
 
-  slice(start: number, end: number): Uint8Array {
+  /**
+   * Return a zero-copy view over `[start, end)`. Mutations to the
+   * returned Uint8Array will write through to the underlying buffer —
+   * if you need to own the bytes, call `.slice()` on the result.
+   */
+  subview(start: number, end: number): Uint8Array {
     return this.bytes.subarray(start, end);
   }
 
