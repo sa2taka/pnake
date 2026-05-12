@@ -133,21 +133,27 @@ export class Lexer {
     while (!this.reader.eof) {
       const b = this.reader.peek();
       if (b === undefined || !isRegular(b)) break;
-      this.reader.advance(1);
       if (b === CHAR_HASH) {
-        const hi = this.reader.read();
-        const lo = this.reader.read();
-        if (hi === -1 || lo === -1 || !isHex(hi) || !isHex(lo)) {
+        // Look at the next two bytes without consuming them — if either is
+        // not a hex digit, leave them in place so the surrounding lexer can
+        // re-emit them as their own tokens (delimiters / whitespace stay
+        // intact). This keeps the broken-name error local to the name.
+        const hi = this.reader.peek(1);
+        const lo = this.reader.peek(2);
+        if (hi === undefined || lo === undefined || !isHex(hi) || !isHex(lo)) {
+          this.reader.advance(1); // consume only the # itself
           return {
             kind: "error",
             range: { start, end: this.reader.pos },
             message: "Invalid #XX escape in name",
           };
         }
+        this.reader.advance(3); // # hi lo
         value += String.fromCharCode((hexValue(hi) << 4) | hexValue(lo));
-      } else {
-        value += String.fromCharCode(b);
+        continue;
       }
+      this.reader.advance(1);
+      value += String.fromCharCode(b);
     }
     return { kind: "name", range: { start, end: this.reader.pos }, value };
   }
@@ -160,6 +166,7 @@ export class Lexer {
     this.reader.advance(1); // consume (
     const out: number[] = [];
     let depth = 1;
+    let terminated = false;
 
     while (!this.reader.eof && depth > 0) {
       const b = this.reader.read();
@@ -171,7 +178,10 @@ export class Lexer {
       }
       if (b === CHAR_RPAREN) {
         depth--;
-        if (depth === 0) break;
+        if (depth === 0) {
+          terminated = true;
+          break;
+        }
         out.push(b);
         continue;
       }
@@ -231,6 +241,13 @@ export class Lexer {
       out.push(b);
     }
 
+    if (!terminated) {
+      return {
+        kind: "error",
+        range: { start, end: this.reader.pos },
+        message: "Unterminated literal string",
+      };
+    }
     return {
       kind: "stringLiteral",
       range: { start, end: this.reader.pos },
@@ -266,11 +283,14 @@ export class Lexer {
 
   private lexHexString(start: number): Token {
     const nibbles: number[] = [];
+    let terminated = false;
+    let invalidCount = 0;
     while (!this.reader.eof) {
       const b = this.reader.peek();
       if (b === undefined) break;
       if (b === CHAR_GT) {
         this.reader.advance(1);
+        terminated = true;
         break;
       }
       if (isWhitespace(b)) {
@@ -278,12 +298,27 @@ export class Lexer {
         continue;
       }
       if (!isHex(b)) {
-        // Skip unknown character, register as error but keep going.
+        // Tolerate but track; we'll surface as error if any invalid byte appears.
         this.reader.advance(1);
+        invalidCount++;
         continue;
       }
       this.reader.advance(1);
       nibbles.push(hexValue(b));
+    }
+    if (!terminated) {
+      return {
+        kind: "error",
+        range: { start, end: this.reader.pos },
+        message: "Unterminated hex string",
+      };
+    }
+    if (invalidCount > 0) {
+      return {
+        kind: "error",
+        range: { start, end: this.reader.pos },
+        message: `Hex string contains ${invalidCount} invalid byte(s)`,
+      };
     }
     if (nibbles.length % 2 !== 0) nibbles.push(0);
     const bytes = new Uint8Array(nibbles.length / 2);

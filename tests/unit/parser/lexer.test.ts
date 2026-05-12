@@ -126,6 +126,33 @@ describe("Lexer — keywords and recovery", () => {
     expect(tokens.at(-1)?.kind).toBe("eof");
   });
 
+  it("emits an error token for an unterminated literal string", () => {
+    const tokens = lex("(no closing");
+    expect(tokens[0]?.kind).toBe("error");
+    expect(tokens[0]).toMatchObject({ message: expect.stringContaining("Unterminated") });
+  });
+
+  it("emits an error token for an unterminated hex string", () => {
+    const tokens = lex("<deadbe");
+    expect(tokens[0]?.kind).toBe("error");
+  });
+
+  it("emits an error token for invalid hex string content", () => {
+    const tokens = lex("<dead!!beef>");
+    expect(tokens[0]?.kind).toBe("error");
+    expect(tokens[0]).toMatchObject({ message: expect.stringContaining("invalid") });
+  });
+
+  it("name with malformed #XX leaves the next delimiter intact", () => {
+    // /A#2/B should produce error (for /A#) and then re-tokenize what is left:
+    // the `2` byte becomes an integer, the `/B` becomes a fresh name.
+    // Critically, the second `/` must NOT be consumed by the recovery —
+    // otherwise we lose the next name entirely.
+    const tokens = lex("/A#2/B");
+    expect(tokens[0]?.kind).toBe("error");
+    expect(tokens.find((t) => t.kind === "name")).toMatchObject({ value: "B" });
+  });
+
   it("does not infinite-loop on arbitrary bytes", () => {
     const bytes = Uint8Array.from([0x00, 0x7f, 0x00]);
     const tokens = tokenizeAll(bytes);
