@@ -31,6 +31,14 @@ type Pending = {
 export class WorkerClient {
   private nextId = 1;
   private pending = new Map<number, Pending>();
+  /**
+   * The client transitions to "dead" after a fatal Worker error or an
+   * explicit terminate(). Once dead, all subsequent calls reject
+   * immediately so callers get a fast, deterministic failure instead of
+   * waiting on a Worker that will never reply.
+   */
+  private closed = false;
+  private closedReason: Error | null = null;
 
   constructor(private worker: Worker) {
     this.worker.addEventListener("message", this.handleMessage);
@@ -45,12 +53,18 @@ export class WorkerClient {
     return new WorkerClient(worker);
   }
 
+  get isClosed(): boolean {
+    return this.closed;
+  }
+
   terminate(): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.closedReason = new Error("Worker terminated");
     this.worker.removeEventListener("message", this.handleMessage);
     this.worker.removeEventListener("error", this.handleError);
     this.worker.terminate();
-    const err = new Error("Worker terminated");
-    for (const p of this.pending.values()) p.reject(err);
+    for (const p of this.pending.values()) p.reject(this.closedReason);
     this.pending.clear();
   }
 
@@ -98,6 +112,9 @@ export class WorkerClient {
     transfer: Transferable[] | undefined,
     options: CallOptions,
   ): Promise<T> {
+    if (this.closed) {
+      return Promise.reject(this.closedReason ?? new Error("Worker is closed"));
+    }
     const id = this.nextId++;
     return new Promise<T>((resolve, reject) => {
       this.pending.set(id, {
@@ -156,8 +173,15 @@ export class WorkerClient {
   };
 
   private handleError = (event: ErrorEvent): void => {
-    const err = new Error(event.message);
-    for (const p of this.pending.values()) p.reject(err);
+    // A bubbled ErrorEvent from the Worker is treated as a fatal failure:
+    // we can't tell whether the worker can keep running, and our protocol
+    // assumes one outstanding state per id, so we close the client to
+    // surface the failure to all pending callers AND any future ones.
+    this.closed = true;
+    this.closedReason = new Error(event.message || "Worker fatal error");
+    for (const p of this.pending.values()) p.reject(this.closedReason);
     this.pending.clear();
+    this.worker.removeEventListener("message", this.handleMessage);
+    this.worker.removeEventListener("error", this.handleError);
   };
 }

@@ -94,4 +94,18 @@ describe("WorkerClient", () => {
     ac.abort();
     await expect(promise).rejects.toThrow(/Aborted/);
   });
+
+  it("rejects subsequent calls after terminate() with a fast failure", async () => {
+    const { client } = makeClient();
+    client.terminate();
+    expect(client.isClosed).toBe(true);
+    await expect(client.ping()).rejects.toThrow(/terminated/);
+  });
+
+  it("transitions to closed on a fatal worker ErrorEvent and rejects future calls", async () => {
+    const { client, fake } = makeClient();
+    fake.dispatchEvent(new ErrorEvent("error", { message: "boom" }));
+    expect(client.isClosed).toBe(true);
+    await expect(client.ping()).rejects.toThrow(/boom/);
+  });
 });
