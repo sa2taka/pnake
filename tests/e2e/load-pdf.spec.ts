@@ -50,6 +50,59 @@ test.describe("pnake — load tracemonkey.pdf", () => {
     await expect(detail).toContainText(/MediaBox/);
   });
 
+  test("renders the page with PDF.js and lists content operators", async ({ page }) => {
+    await page.goto("/");
+    const input = page.getByTestId("file-input");
+    await input.setInputFiles(TRACEMONKEY);
+
+    // Wait for the canvas to receive backing-store dimensions, meaning PDF.js
+    // finished rendering. Polling on the attribute keeps us robust against
+    // timing differences between webkit and chromium.
+    const canvas = page.getByTestId("render-canvas");
+    await expect.poll(async () => Number(await canvas.getAttribute("width"))).toBeGreaterThan(0);
+    await expect.poll(async () => Number(await canvas.getAttribute("height"))).toBeGreaterThan(0);
+
+    // Switch to Content view; the operator list should be non-empty.
+    await page
+      .getByRole("toolbar")
+      .locator("select")
+      .selectOption({ label: "Content" });
+    await expect(page.locator('[data-testid^="tree-op-"]').first()).toBeVisible();
+  });
+
+  test("navigating to page 2 updates the operator timeline", async ({ page }) => {
+    await page.goto("/");
+    const input = page.getByTestId("file-input");
+    await input.setInputFiles(TRACEMONKEY);
+
+    await page
+      .getByRole("toolbar")
+      .locator("select")
+      .selectOption({ label: "Content" });
+    await expect(page.locator('[data-testid^="tree-op-"]').first()).toBeVisible();
+    const page1Count = await page.locator('[data-testid^="tree-op-"]').count();
+    const page1Snippet = (
+      await page
+        .locator('[data-testid^="tree-op-"]')
+        .allInnerTexts()
+    ).slice(0, 8).join("\n");
+
+    await page.getByRole("button", { name: "Next page" }).click();
+    await expect(page.getByTestId("toolbar-page")).toContainText("2 /");
+    await expect.poll(async () => {
+      return (
+        await page.locator('[data-testid^="tree-op-"]').allInnerTexts()
+      )
+        .slice(0, 8)
+        .join("\n");
+    }).not.toBe(page1Snippet);
+
+    const page2Count = await page.locator('[data-testid^="tree-op-"]').count();
+    expect(page2Count).toBeGreaterThan(0);
+    // Sanity: the two pages should be measurably different in size.
+    expect(Math.abs(page2Count - page1Count)).toBeGreaterThan(0);
+  });
+
   test("the bottom drawer renders a hex view of stream bytes", async ({ page }) => {
     await page.goto("/");
     const input = page.getByTestId("file-input");
