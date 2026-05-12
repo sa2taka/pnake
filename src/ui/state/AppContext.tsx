@@ -14,7 +14,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import type { PdfAnalysis } from "../../shared/ir-types";
+import type { PdfAnalysis, PdfStructTree } from "../../shared/ir-types";
 import type { PageOperationsResult } from "../../shared/protocol";
 import {
   createDefaultParserService,
@@ -39,6 +39,7 @@ export interface AppState {
   fileName?: string;
   fileBytes?: ArrayBuffer;
   analysis?: PdfAnalysis;
+  structTree?: PdfStructTree;
   error?: string;
   selectedNodeId?: string;
   selectionOrigin: SelectionOrigin;
@@ -56,6 +57,7 @@ type Action =
   | {
       type: "loadSuccess";
       analysis: PdfAnalysis;
+      structTree?: PdfStructTree;
       fileName?: string;
       fileBytes?: ArrayBuffer;
     }
@@ -89,6 +91,7 @@ export function appReducer(state: AppState, action: Action): AppState {
         ...state,
         status: "loaded",
         analysis: action.analysis,
+        structTree: action.structTree,
         fileName: action.fileName ?? state.fileName,
         fileBytes: action.fileBytes ?? state.fileBytes,
         error: undefined,

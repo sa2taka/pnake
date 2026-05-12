@@ -27,10 +27,11 @@ export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): JSX.Eleme
       const buffer = await file.arrayBuffer();
       // Keep a copy for PDF.js — parser.load() may transfer the original buffer.
       const rendererCopy = buffer.slice(0);
-      const analysis = await parser.load(buffer, file.name);
+      const { analysis, structTree } = await parser.load(buffer, file.name);
       dispatch({
         type: "loadSuccess",
         analysis,
+        structTree,
         fileName: file.name,
         fileBytes: rendererCopy,
       });

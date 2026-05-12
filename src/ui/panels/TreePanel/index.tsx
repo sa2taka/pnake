@@ -7,6 +7,7 @@ import { FileStructureView } from "./FileStructureView";
 import { PagesView } from "./PagesView";
 import { WarningsView } from "./WarningsView";
 import { ContentView } from "./ContentView";
+import { StructureView } from "./StructureView";
 import "./TreePanel.css";
 
 export function TreePanel(): JSX.Element {
@@ -36,6 +37,8 @@ export function TreePanel(): JSX.Element {
         <PagesView />
       ) : state.treeView === "content" ? (
         <ContentView />
+      ) : state.treeView === "structure" ? (
+        <StructureView />
       ) : state.treeView === "warnings" ? (
         <WarningsView />
       ) : (

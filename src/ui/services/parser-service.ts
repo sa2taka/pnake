@@ -11,13 +11,23 @@
  * rest of the UI never knows which one it is talking to.
  */
 
-import type { ObjectId, PdfAnalysis, PdfObjectDetail } from "../../shared/ir-types";
+import type {
+  ObjectId,
+  PdfAnalysis,
+  PdfObjectDetail,
+  PdfStructTree,
+} from "../../shared/ir-types";
 import type { PageOperationsResult, StreamResult } from "../../shared/protocol";
 import { ParserState } from "../../worker/handlers";
 import { WorkerClient } from "../workerClient";
 
+export interface LoadOutput {
+  analysis: PdfAnalysis;
+  structTree?: PdfStructTree;
+}
+
 export interface ParserService {
-  load(buffer: ArrayBuffer, fileName?: string): Promise<PdfAnalysis>;
+  load(buffer: ArrayBuffer, fileName?: string): Promise<LoadOutput>;
   getObjectDetail(objectId: ObjectId): Promise<PdfObjectDetail>;
   getStream(objectId: ObjectId, mode: "raw" | "decoded"): Promise<StreamResult>;
   getPageOperations(pageNumber: number): Promise<PageOperationsResult>;
@@ -27,9 +37,9 @@ export interface ParserService {
 export class WorkerParserService implements ParserService {
   private readonly client = WorkerClient.spawn();
 
-  async load(buffer: ArrayBuffer, fileName?: string): Promise<PdfAnalysis> {
-    const { analysis } = await this.client.load(buffer, fileName);
-    return analysis;
+  async load(buffer: ArrayBuffer, fileName?: string): Promise<LoadOutput> {
+    const { analysis, structTree } = await this.client.load(buffer, fileName);
+    return { analysis, ...(structTree ? { structTree } : {}) };
   }
 
   getObjectDetail(objectId: ObjectId): Promise<PdfObjectDetail> {
@@ -52,9 +62,9 @@ export class WorkerParserService implements ParserService {
 export class InProcessParserService implements ParserService {
   private readonly state = new ParserState();
 
-  async load(buffer: ArrayBuffer): Promise<PdfAnalysis> {
-    const { analysis } = await this.state.load(buffer);
-    return analysis;
+  async load(buffer: ArrayBuffer): Promise<LoadOutput> {
+    const { analysis, structTree } = await this.state.load(buffer);
+    return { analysis, ...(structTree ? { structTree } : {}) };
   }
 
   async getObjectDetail(objectId: ObjectId): Promise<PdfObjectDetail> {
