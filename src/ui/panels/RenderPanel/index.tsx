@@ -3,6 +3,7 @@ import { PanelHeader } from "../PanelHeader";
 import { useApp } from "../../state/AppContext";
 import { renderPageWithHandle } from "../../../pdfjs/renderer";
 import { RenderOverlay } from "../../overlay/RenderOverlay";
+import { isOperationId } from "../../../shared/ir-types";
 import "./RenderPanel.css";
 
 export function RenderPanel(): JSX.Element {
@@ -82,7 +83,7 @@ export function RenderPanel(): JSX.Element {
               elements={pageOps.visualElements}
               pixelSize={pageSize}
               selectedOperationId={
-                state.selectedNodeId?.startsWith("page:")
+                state.selectedNodeId && isOperationId(state.selectedNodeId)
                   ? state.selectedNodeId
                   : undefined
               }

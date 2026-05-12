@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { PanelHeader } from "../PanelHeader";
 import { useApp } from "../../state/AppContext";
 import type { PdfObjectDetail, PdfOperation } from "../../../shared/ir-types";
+import { isObjectId, isOperationId } from "../../../shared/ir-types";
 import { explainOperator } from "../../../shared/pdf-spec";
 import { PdfValueView } from "./PdfValueView";
 import "./DetailPanel.css";
@@ -16,25 +17,21 @@ export function DetailPanel(): JSX.Element {
 
   // Look up the selected operation when applicable.
   const operation: PdfOperation | undefined = (() => {
-    if (!state.selectedNodeId?.startsWith("page:")) return undefined;
-    return state.pageOperations?.operations.find(
-      (op) => op.id === state.selectedNodeId,
-    );
+    const id = state.selectedNodeId;
+    if (!id || !isOperationId(id)) return undefined;
+    return state.pageOperations?.operations.find((op) => op.id === id);
   })();
 
   useEffect(() => {
     setError(null);
-    if (!state.selectedNodeId || !state.analysis) {
-      setDetail(null);
-      return;
-    }
-    if (!state.selectedNodeId.startsWith("obj:")) {
+    const id = state.selectedNodeId;
+    if (!id || !state.analysis || !isObjectId(id)) {
       setDetail(null);
       return;
     }
     let cancelled = false;
     parser
-      .getObjectDetail(state.selectedNodeId)
+      .getObjectDetail(id)
       .then((d) => {
         if (!cancelled) setDetail(d);
       })

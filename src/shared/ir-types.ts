@@ -3,7 +3,20 @@
  * Must stay in sync with docs/DATA_MODEL.md (see ADR-006).
  */
 
-export type ObjectId = string;
+/**
+ * Stable, human-readable node identifiers. They are plain strings on the
+ * wire (structured-clone safe), but the type-level shape catches the
+ * common "passed a page id where an object id was expected" mistakes.
+ *
+ * The constructor functions below are the only blessed way to produce
+ * one; the type predicates (isObjectId / isPageId / isOperationId) are
+ * the blessed way to refine an untrusted string back into a specific
+ * variant. Other id-shaped strings (struct trees, visual elements,
+ * warnings) stay as plain strings since the UI uses them as opaque keys.
+ */
+export type ObjectId = `obj:${number}:${number}`;
+export type PageId = `page:${number}`;
+export type OperationId = `page:${number}:op:${number}`;
 
 export interface ByteRange {
   start: number;
@@ -380,16 +393,33 @@ export function objectId(num: number, gen: number): ObjectId {
   return `obj:${num}:${gen}`;
 }
 
-export function parseObjectId(id: ObjectId): { number: number; generation: number } | null {
+export function parseObjectId(id: string): { number: number; generation: number } | null {
   const m = /^obj:(\d+):(\d+)$/.exec(id);
   if (!m) return null;
   return { number: Number(m[1]), generation: Number(m[2]) };
 }
 
-export function pageId(pageNumber: number): string {
+export function pageId(pageNumber: number): PageId {
   return `page:${pageNumber}`;
 }
 
-export function operationId(pageNumber: number, sequence: number): string {
+export function operationId(pageNumber: number, sequence: number): OperationId {
   return `page:${pageNumber}:op:${sequence}`;
+}
+
+// =============================================================================
+// Type predicates — narrow an untrusted string back into a specific id variant.
+// Cheaper than parsing into a struct when callers only need the discriminator.
+// =============================================================================
+
+export function isObjectId(id: string): id is ObjectId {
+  return /^obj:\d+:\d+$/.test(id);
+}
+
+export function isPageId(id: string): id is PageId {
+  return /^page:\d+$/.test(id);
+}
+
+export function isOperationId(id: string): id is OperationId {
+  return /^page:\d+:op:\d+$/.test(id);
 }

@@ -1,9 +1,9 @@
 import { useState } from "react";
-import type { PdfValue } from "../../../shared/ir-types";
+import type { ObjectId, PdfValue } from "../../../shared/ir-types";
 
 interface PdfValueViewProps {
   value: PdfValue;
-  onRefClick?: (objectId: string) => void;
+  onRefClick?: (objectId: ObjectId) => void;
 }
 
 export function PdfValueView({ value, onRefClick }: PdfValueViewProps): JSX.Element {
@@ -20,7 +20,7 @@ function Value({
   depth,
 }: {
   value: PdfValue;
-  onRefClick?: (id: string) => void;
+  onRefClick?: (id: ObjectId) => void;
   depth: number;
 }): JSX.Element {
   switch (value.kind) {
@@ -102,7 +102,7 @@ function Collection({
   open: string;
   close: string;
   items: { key: string; label?: string; value: PdfValue }[];
-  onRefClick?: (id: string) => void;
+  onRefClick?: (id: ObjectId) => void;
   depth: number;
 }): JSX.Element {
   const [collapsed, setCollapsed] = useState(depth > 1);

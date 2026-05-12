@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveResources } from "../../../src/worker/pdf/resources/resolver";
 import type { IndirectObject } from "../../../src/worker/pdf/parse/object-reader";
+import type { ObjectId } from "../../../src/shared/ir-types";
 
 function makeDict(entries: Record<string, unknown>): IndirectObject["value"] {
   const dict: Record<string, IndirectObject["value"]> = {};
@@ -15,7 +16,7 @@ function toValue(v: unknown): IndirectObject["value"] {
     return { kind: "name", value: v.slice(1) };
   }
   if (typeof v === "string" && /^obj:/.test(v)) {
-    return { kind: "ref", target: v };
+    return { kind: "ref", target: v as ObjectId };
   }
   if (typeof v === "number") {
     return Number.isInteger(v)
@@ -31,13 +32,14 @@ function toValue(v: unknown): IndirectObject["value"] {
   return { kind: "null" };
 }
 
-function objects(map: Record<string, IndirectObject["value"]>): Map<string, IndirectObject> {
-  const out = new Map<string, IndirectObject>();
+function objects(map: Record<string, IndirectObject["value"]>): Map<ObjectId, IndirectObject> {
+  const out = new Map<ObjectId, IndirectObject>();
   for (const [id, value] of Object.entries(map)) {
     const m = /^obj:(\d+):(\d+)$/.exec(id);
     if (!m) continue;
-    out.set(id, {
-      id,
+    const oid = id as ObjectId;
+    out.set(oid, {
+      id: oid,
       number: Number(m[1]),
       generation: Number(m[2]),
       range: { start: 0, end: 0 },

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { PanelHeader } from "../PanelHeader";
 import { useApp, type BottomTab } from "../../state/AppContext";
+import { isObjectId } from "../../../shared/ir-types";
 import "./BottomDrawer.css";
 
 const TABS: { id: BottomTab; label: string }[] = [
@@ -63,7 +64,7 @@ function StreamPreview({
   useEffect(() => {
     setBytes(null);
     setError(null);
-    if (!selectedId?.startsWith("obj:")) return;
+    if (!selectedId || !isObjectId(selectedId)) return;
     let cancelled = false;
     setLoading(true);
     parser

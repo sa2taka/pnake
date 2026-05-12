@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildStructTree } from "../../../src/worker/pdf/structure/struct-tree";
 import type { IndirectObject } from "../../../src/worker/pdf/parse/object-reader";
-import type { PdfValue } from "../../../src/shared/ir-types";
+import type { ObjectId, PdfValue } from "../../../src/shared/ir-types";
 
 function dict(entries: Record<string, PdfValue>): PdfValue {
   return { kind: "dict", entries };
@@ -10,7 +10,7 @@ function name(value: string): PdfValue {
   return { kind: "name", value };
 }
 function ref(target: string): PdfValue {
-  return { kind: "ref", target };
+  return { kind: "ref", target: target as ObjectId };
 }
 function arr(items: PdfValue[]): PdfValue {
   return { kind: "array", items };
@@ -24,13 +24,14 @@ function str(s: string): PdfValue {
 
 function makeObjects(
   map: Record<string, PdfValue>,
-): Map<string, IndirectObject> {
-  const out = new Map<string, IndirectObject>();
+): Map<ObjectId, IndirectObject> {
+  const out = new Map<ObjectId, IndirectObject>();
   for (const [id, value] of Object.entries(map)) {
     const m = /^obj:(\d+):(\d+)$/.exec(id);
     if (!m) continue;
-    out.set(id, {
-      id,
+    const oid = id as ObjectId;
+    out.set(oid, {
+      id: oid,
       number: Number(m[1]),
       generation: Number(m[2]),
       range: { start: 0, end: 0 },
