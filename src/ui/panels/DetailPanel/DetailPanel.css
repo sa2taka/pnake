@@ -174,3 +174,19 @@
 .pdfvalue-close {
   color: var(--fg-subtle);
 }
+
+.detailpanel-operands {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detailpanel-operands li {
+  padding: 4px 6px;
+  background: var(--bg-row);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+}

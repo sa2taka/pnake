@@ -15,6 +15,7 @@ import {
   type ReactNode,
 } from "react";
 import type { PdfAnalysis } from "../../shared/ir-types";
+import type { PageOperationsResult } from "../../shared/protocol";
 import {
   createDefaultParserService,
   type ParserService,
@@ -45,6 +46,9 @@ export interface AppState {
   bottomTab: BottomTab;
   bottomOpen: boolean;
   currentPage: number;
+  pageOperations?: PageOperationsResult;
+  pageOperationsStatus: "idle" | "loading" | "loaded" | "error";
+  pageOperationsError?: string;
 }
 
 type Action =
@@ -61,7 +65,10 @@ type Action =
   | { type: "setBottomTab"; tab: BottomTab }
   | { type: "toggleBottom" }
   | { type: "setBottomOpen"; open: boolean }
-  | { type: "setCurrentPage"; pageNumber: number };
+  | { type: "setCurrentPage"; pageNumber: number }
+  | { type: "pageOpsStart"; pageNumber: number }
+  | { type: "pageOpsSuccess"; result: PageOperationsResult }
+  | { type: "pageOpsError"; error: string };
 
 export const initialState: AppState = {
   status: "idle",
@@ -70,6 +77,7 @@ export const initialState: AppState = {
   bottomTab: "raw",
   bottomOpen: false,
   currentPage: 1,
+  pageOperationsStatus: "idle",
 };
 
 export function appReducer(state: AppState, action: Action): AppState {
@@ -104,7 +112,31 @@ export function appReducer(state: AppState, action: Action): AppState {
     case "setBottomOpen":
       return { ...state, bottomOpen: action.open };
     case "setCurrentPage":
-      return { ...state, currentPage: action.pageNumber };
+      return {
+        ...state,
+        currentPage: action.pageNumber,
+        pageOperations: undefined,
+        pageOperationsStatus: "idle",
+      };
+    case "pageOpsStart":
+      return {
+        ...state,
+        currentPage: action.pageNumber,
+        pageOperationsStatus: "loading",
+      };
+    case "pageOpsSuccess":
+      return {
+        ...state,
+        pageOperations: action.result,
+        pageOperationsStatus: "loaded",
+        pageOperationsError: undefined,
+      };
+    case "pageOpsError":
+      return {
+        ...state,
+        pageOperationsStatus: "error",
+        pageOperationsError: action.error,
+      };
     default: {
       const _exhaustive: never = action;
       void _exhaustive;
@@ -154,6 +186,37 @@ export function AppProvider({ children, parserService }: AppProviderProps): JSX.
       ownedRef.current = null;
     };
   }, []);
+
+  // Fetch operations + visual elements whenever the current page changes.
+  useEffect(() => {
+    if (state.status !== "loaded") return;
+    if (state.pageOperationsStatus !== "idle") return;
+    if (!state.analysis?.pages[state.currentPage - 1]) return;
+    let cancelled = false;
+    dispatch({ type: "pageOpsStart", pageNumber: state.currentPage });
+    parser
+      .getPageOperations(state.currentPage)
+      .then((result) => {
+        if (!cancelled) dispatch({ type: "pageOpsSuccess", result });
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          dispatch({
+            type: "pageOpsError",
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    state.status,
+    state.currentPage,
+    state.pageOperationsStatus,
+    state.analysis,
+    parser,
+  ]);
 
   const value = useMemo<AppContextValue>(
     () => ({ state, dispatch, parser }),

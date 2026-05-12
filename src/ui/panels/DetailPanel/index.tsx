@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { PanelHeader } from "../PanelHeader";
 import { useApp } from "../../state/AppContext";
-import type { PdfObjectDetail } from "../../../shared/ir-types";
+import type { PdfObjectDetail, PdfOperation } from "../../../shared/ir-types";
 import { PdfValueView } from "./PdfValueView";
 import "./DetailPanel.css";
 
@@ -12,6 +12,14 @@ export function DetailPanel(): JSX.Element {
   const [detail, setDetail] = useState<PdfObjectDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("technical");
+
+  // Look up the selected operation when applicable.
+  const operation: PdfOperation | undefined = (() => {
+    if (!state.selectedNodeId?.startsWith("page:")) return undefined;
+    return state.pageOperations?.operations.find(
+      (op) => op.id === state.selectedNodeId,
+    );
+  })();
 
   useEffect(() => {
     setError(null);
@@ -41,9 +49,9 @@ export function DetailPanel(): JSX.Element {
     <div className="detailpanel" data-testid="detail-panel">
       <PanelHeader
         title="Detail"
-        subtitle={detail?.id}
+        subtitle={detail?.id ?? operation?.id}
         actions={
-          detail ? (
+          detail || operation ? (
             <div className="detailpanel-tabs" role="tablist">
               {(["human", "technical", "raw"] as const).map((t) => (
                 <button
@@ -72,6 +80,9 @@ export function DetailPanel(): JSX.Element {
         {detail && tab === "human" && <HumanView detail={detail} />}
         {detail && tab === "technical" && <TechnicalView detail={detail} dispatch={dispatch} />}
         {detail && tab === "raw" && <RawView detail={detail} />}
+        {operation && (
+          <OperationView operation={operation} tab={tab} />
+        )}
       </div>
     </div>
   );
@@ -141,5 +152,52 @@ function TechnicalView({
 function RawView({ detail }: { detail: PdfObjectDetail }): JSX.Element {
   return (
     <pre className="detailpanel-raw">{detail.rawText}</pre>
+  );
+}
+
+function OperationView({
+  operation,
+  tab,
+}: {
+  operation: PdfOperation;
+  tab: Tab;
+}): JSX.Element {
+  return (
+    <div className="detailpanel-technical">
+      <dl className="detailpanel-meta">
+        <dt>Operator</dt>
+        <dd>
+          <code>{operation.operator}</code>
+        </dd>
+        <dt>Category</dt>
+        <dd>{operation.category}</dd>
+        <dt>Sequence</dt>
+        <dd>{operation.sequence}</dd>
+        {operation.decodedRange && (
+          <>
+            <dt>Decoded range</dt>
+            <dd>
+              {operation.decodedRange.start}–{operation.decodedRange.end}
+            </dd>
+          </>
+        )}
+      </dl>
+      <h3 className="detailpanel-section-title">Operands</h3>
+      <ul className="detailpanel-operands">
+        {operation.operands.length === 0 && (
+          <li className="detailpanel-empty">(no operands)</li>
+        )}
+        {operation.operands.map((operand, i) => (
+          <li key={i}>
+            <PdfValueView value={operand} />
+          </li>
+        ))}
+      </ul>
+      {tab === "human" && (
+        <p className="detailpanel-empty">
+          Human-readable explanations are added in a follow-up commit.
+        </p>
+      )}
+    </div>
   );
 }
