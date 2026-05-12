@@ -21,7 +21,9 @@
     "resolveJsonModule": true,
     "allowImportingTsExtensions": false,
     "moduleDetection": "force",
-    "noEmit": true
+    "noEmit": true,
+
+    "types": []
   },
   "include": ["src", "tests/unit", "tests/setup.ts"],
   "exclude": ["node_modules", "dist", "tests/e2e"]
