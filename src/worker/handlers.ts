@@ -22,6 +22,7 @@ import { resolveResources } from "./pdf/resources/resolver";
 import { parseToUnicodeCMap, type ToUnicodeCMap } from "./pdf/resources/cmap";
 import { decodeStream, extractDecodeParms } from "./pdf/streams/decode";
 import { parsePdf } from "./pdf/structure/manifest";
+import { buildStructTree } from "./pdf/structure/struct-tree";
 import { LruCache } from "./lru-cache";
 
 interface State {
@@ -38,11 +39,18 @@ export class ParserState {
   async load(buffer: ArrayBuffer): Promise<LoadResult> {
     const bytes = new Uint8Array(buffer);
     const { analysis, objects, reader } = await parsePdf(bytes);
+    const structTreeRoot = analysis.documentTree?.structTreeRootRef;
+    const structTree = structTreeRoot
+      ? buildStructTree({ structTreeRootRef: structTreeRoot, objects })
+      : undefined;
+    const result: LoadResult = structTree
+      ? { analysis, structTree }
+      : { analysis };
     this.state = {
       bytes,
       reader,
       objects,
-      analysisJson: { analysis },
+      analysisJson: result,
     };
     this.decodedCache.clear();
     return this.state.analysisJson;

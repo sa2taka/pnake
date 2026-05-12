@@ -9,6 +9,7 @@ import type {
   PdfObjectDetail,
   PdfOperation,
   PdfResolvedResources,
+  PdfStructTree,
   PdfVisualElement,
   PdfWarning,
 } from "./ir-types";
@@ -42,6 +43,7 @@ export interface WorkerError {
 
 export type LoadResult = {
   analysis: PdfAnalysis;
+  structTree?: PdfStructTree;
 };
 
 export type StreamResult = {

@@ -264,6 +264,30 @@ export interface PdfOperation {
 }
 
 // =============================================================================
+// Logical structure (tagged PDF)
+// =============================================================================
+
+export interface PdfStructTreeNode {
+  id: string;
+  objectRef?: ObjectId;
+  structureType: string;
+  title?: string;
+  alt?: string;
+  lang?: string;
+  actualText?: string;
+  children: PdfStructTreeChild[];
+}
+
+export type PdfStructTreeChild =
+  | { kind: "elem"; node: PdfStructTreeNode }
+  | { kind: "mcid"; mcid: number; page?: ObjectId }
+  | { kind: "objr"; ref: ObjectId; page?: ObjectId };
+
+export interface PdfStructTree {
+  root: PdfStructTreeNode;
+}
+
+// =============================================================================
 // Visual elements (overlay-bound)
 // =============================================================================
 
