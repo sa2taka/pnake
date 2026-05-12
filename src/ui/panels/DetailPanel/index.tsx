@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { PanelHeader } from "../PanelHeader";
 import { useApp } from "../../state/AppContext";
 import type { PdfObjectDetail, PdfOperation } from "../../../shared/ir-types";
+import { explainOperator } from "../../../shared/pdf-spec";
 import { PdfValueView } from "./PdfValueView";
 import "./DetailPanel.css";
 
@@ -162,6 +163,27 @@ function OperationView({
   operation: PdfOperation;
   tab: Tab;
 }): JSX.Element {
+  const explanation = explainOperator(operation);
+  if (tab === "human") {
+    return (
+      <div className="detailpanel-human">
+        <p>{explanation.human}</p>
+        {explanation.specSection && (
+          <p className="detailpanel-spec-ref">
+            PDF 仕様: {explanation.specSection}
+          </p>
+        )}
+      </div>
+    );
+  }
+  if (tab === "raw") {
+    return (
+      <pre className="detailpanel-raw">
+        {formatOperands(operation.operands)}
+        {operation.operator}
+      </pre>
+    );
+  }
   return (
     <div className="detailpanel-technical">
       <dl className="detailpanel-meta">
@@ -181,6 +203,8 @@ function OperationView({
             </dd>
           </>
         )}
+        <dt>Description</dt>
+        <dd>{explanation.technical}</dd>
       </dl>
       <h3 className="detailpanel-section-title">Operands</h3>
       <ul className="detailpanel-operands">
@@ -193,11 +217,37 @@ function OperationView({
           </li>
         ))}
       </ul>
-      {tab === "human" && (
-        <p className="detailpanel-empty">
-          Human-readable explanations are added in a follow-up commit.
-        </p>
-      )}
     </div>
+  );
+}
+
+function formatOperands(operands: PdfOperation["operands"]): string {
+  if (operands.length === 0) return "";
+  return (
+    operands
+      .map((o) => {
+        switch (o.kind) {
+          case "int":
+          case "real":
+            return String(o.value);
+          case "name":
+            return `/${o.value}`;
+          case "string":
+            return "(...)";
+          case "array":
+            return "[...]";
+          case "dict":
+            return "<<...>>";
+          case "ref":
+            return o.target;
+          case "bool":
+            return String(o.value);
+          case "null":
+            return "null";
+          case "stream":
+            return "stream";
+        }
+      })
+      .join(" ") + " "
   );
 }
