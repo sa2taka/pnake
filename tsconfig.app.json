@@ -23,6 +23,6 @@
     "moduleDetection": "force",
     "noEmit": true
   },
-  "include": ["src", "tests/unit"],
+  "include": ["src", "tests/unit", "tests/setup.ts"],
   "exclude": ["node_modules", "dist", "tests/e2e"]
 }
