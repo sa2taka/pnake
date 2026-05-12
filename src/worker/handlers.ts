@@ -12,7 +12,9 @@ import type {
 } from "../shared/ir-types";
 import type { LoadResult, PageOperationsResult, StreamResult } from "../shared/protocol";
 import { ByteReader, asciiString } from "./pdf/io/byte-reader";
+import { parseContentStream } from "./pdf/content/parser";
 import type { IndirectObject } from "./pdf/parse/object-reader";
+import { extractFilters } from "./pdf/parse/value-parser";
 import { decodeStream, extractDecodeParms } from "./pdf/streams/decode";
 import { parsePdf } from "./pdf/structure/manifest";
 
@@ -100,10 +102,57 @@ export class ParserState {
     };
   }
 
-  // Placeholder — fully implemented in Phase 2.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getPageOperations(_pageNumber: number): PageOperationsResult {
-    throw new Error("getPageOperations is not implemented yet");
+  async getPageOperations(pageNumber: number): Promise<PageOperationsResult> {
+    const s = this.require();
+    const page = s.analysisJson.analysis.pages[pageNumber - 1];
+    if (!page) throw new Error(`Page ${pageNumber} not found`);
+
+    // /Contents may be missing, a single ref, or an array of refs. We
+    // concatenate the decoded bytes from each referenced stream object.
+    const allBytes: Uint8Array[] = [];
+    const allWarnings: PageOperationsResult["warnings"] = [];
+    for (const ref of page.contentStreamRefs) {
+      const obj = s.objects.get(ref);
+      if (!obj) {
+        allWarnings.push({
+          id: `warn:contents-missing:${ref}`,
+          severity: "warn",
+          category: "structure",
+          message: `Page ${pageNumber} references missing content object ${ref}`,
+        });
+        continue;
+      }
+      if (obj.value.kind !== "stream") {
+        allWarnings.push({
+          id: `warn:contents-not-stream:${ref}`,
+          severity: "warn",
+          category: "structure",
+          message: `Content object ${ref} is not a stream`,
+        });
+        continue;
+      }
+      const dict = obj.value.dict;
+      const start = streamRangeStart(obj, s.bytes);
+      const raw = s.bytes.subarray(start, start + obj.value.handle.length);
+      try {
+        const decoded = await decodeStream(raw, extractFilters(dict), extractDecodeParms(dict));
+        allBytes.push(decoded);
+      } catch (err) {
+        allWarnings.push({
+          id: `warn:contents-decode:${ref}`,
+          severity: "warn",
+          category: "stream",
+          message: `Failed to decode content stream ${ref}: ${(err as Error).message}`,
+        });
+      }
+    }
+    const combined = concatBytes(allBytes);
+    const { operations, warnings } = parseContentStream(combined, pageNumber);
+    return {
+      pageNumber,
+      operations,
+      warnings: [...allWarnings, ...warnings],
+    };
   }
 
   private require(): State {
@@ -154,6 +203,18 @@ function streamRangeStart(obj: IndirectObject, bytes: Uint8Array): number {
   if (slice[pos] === 0x0d && slice[pos + 1] === 0x0a) pos += 2;
   else if (slice[pos] === 0x0a) pos += 1;
   return start + pos;
+}
+
+function concatBytes(parts: Uint8Array[]): Uint8Array {
+  if (parts.length === 1) return parts[0]!;
+  const total = parts.reduce((a, b) => a + b.length, 0);
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const p of parts) {
+    out.set(p, pos);
+    pos += p.length;
+  }
+  return out;
 }
 
 function indexOfSubsequence(haystack: Uint8Array, needle: number[]): number {

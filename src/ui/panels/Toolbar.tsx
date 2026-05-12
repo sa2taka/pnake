@@ -25,8 +25,15 @@ export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): JSX.Eleme
     dispatch({ type: "loadStart", fileName: file.name });
     try {
       const buffer = await file.arrayBuffer();
+      // Keep a copy for PDF.js — parser.load() may transfer the original buffer.
+      const rendererCopy = buffer.slice(0);
       const analysis = await parser.load(buffer, file.name);
-      dispatch({ type: "loadSuccess", analysis, fileName: file.name });
+      dispatch({
+        type: "loadSuccess",
+        analysis,
+        fileName: file.name,
+        fileBytes: rendererCopy,
+      });
     } catch (err) {
       dispatch({
         type: "loadError",
@@ -93,6 +100,44 @@ export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): JSX.Eleme
           ))}
         </select>
       </div>
+
+      {state.analysis && state.analysis.pages.length > 0 && (
+        <div className="toolbar-group">
+          <span className="toolbar-label">Page</span>
+          <button
+            type="button"
+            className="toolbar-action"
+            aria-label="Previous page"
+            onClick={() =>
+              dispatch({
+                type: "setCurrentPage",
+                pageNumber: Math.max(1, state.currentPage - 1),
+              })
+            }
+          >
+            ‹
+          </button>
+          <span className="toolbar-status" data-testid="toolbar-page">
+            {state.currentPage} / {state.analysis.pages.length}
+          </span>
+          <button
+            type="button"
+            className="toolbar-action"
+            aria-label="Next page"
+            onClick={() =>
+              dispatch({
+                type: "setCurrentPage",
+                pageNumber: Math.min(
+                  state.analysis!.pages.length,
+                  state.currentPage + 1,
+                ),
+              })
+            }
+          >
+            ›
+          </button>
+        </div>
+      )}
 
       <span className="toolbar-flex" />
 

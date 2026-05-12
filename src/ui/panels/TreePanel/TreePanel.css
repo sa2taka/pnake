@@ -131,3 +131,37 @@
 .treepanel-chip[data-kind="xrefStream"] {
   color: #8b949e;
 }
+
+.treepanel-chip[data-kind="graphics-state"] {
+  color: #9ad7ff;
+}
+.treepanel-chip[data-kind="path-construct"],
+.treepanel-chip[data-kind="path-paint"] {
+  color: #f7c873;
+}
+.treepanel-chip[data-kind="clipping"] {
+  color: #f7c873;
+  font-style: italic;
+}
+.treepanel-chip[data-kind="text-object"],
+.treepanel-chip[data-kind="text-state"],
+.treepanel-chip[data-kind="text-positioning"],
+.treepanel-chip[data-kind="text-show"] {
+  color: #d2a8ff;
+}
+.treepanel-chip[data-kind="color"] {
+  color: #ff8fa3;
+}
+.treepanel-chip[data-kind="xobject"] {
+  color: #7ee787;
+}
+.treepanel-chip[data-kind="image-inline"] {
+  color: #79c0ff;
+}
+.treepanel-chip[data-kind="marked-content"] {
+  color: #c08af9;
+  font-style: italic;
+}
+.treepanel-chip[data-kind="unknown"] {
+  color: var(--fg-faint);
+}

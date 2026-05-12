@@ -36,6 +36,7 @@ export type SelectionOrigin = "tree" | "overlay" | "trace" | "detail" | "search"
 export interface AppState {
   status: "idle" | "loading" | "loaded" | "error";
   fileName?: string;
+  fileBytes?: ArrayBuffer;
   analysis?: PdfAnalysis;
   error?: string;
   selectedNodeId?: string;
@@ -43,17 +44,24 @@ export interface AppState {
   treeView: TreeViewMode;
   bottomTab: BottomTab;
   bottomOpen: boolean;
+  currentPage: number;
 }
 
 type Action =
   | { type: "loadStart"; fileName?: string }
-  | { type: "loadSuccess"; analysis: PdfAnalysis; fileName?: string }
+  | {
+      type: "loadSuccess";
+      analysis: PdfAnalysis;
+      fileName?: string;
+      fileBytes?: ArrayBuffer;
+    }
   | { type: "loadError"; error: string }
   | { type: "select"; nodeId: string | undefined; origin: SelectionOrigin }
   | { type: "setTreeView"; mode: TreeViewMode }
   | { type: "setBottomTab"; tab: BottomTab }
   | { type: "toggleBottom" }
-  | { type: "setBottomOpen"; open: boolean };
+  | { type: "setBottomOpen"; open: boolean }
+  | { type: "setCurrentPage"; pageNumber: number };
 
 export const initialState: AppState = {
   status: "idle",
@@ -61,6 +69,7 @@ export const initialState: AppState = {
   treeView: "objects",
   bottomTab: "raw",
   bottomOpen: false,
+  currentPage: 1,
 };
 
 export function appReducer(state: AppState, action: Action): AppState {
@@ -73,8 +82,10 @@ export function appReducer(state: AppState, action: Action): AppState {
         status: "loaded",
         analysis: action.analysis,
         fileName: action.fileName ?? state.fileName,
+        fileBytes: action.fileBytes ?? state.fileBytes,
         error: undefined,
         selectedNodeId: firstSelectableId(action.analysis),
+        currentPage: 1,
       };
     case "loadError":
       return { ...state, status: "error", error: action.error };
@@ -92,6 +103,8 @@ export function appReducer(state: AppState, action: Action): AppState {
       return { ...state, bottomOpen: !state.bottomOpen };
     case "setBottomOpen":
       return { ...state, bottomOpen: action.open };
+    case "setCurrentPage":
+      return { ...state, currentPage: action.pageNumber };
     default: {
       const _exhaustive: never = action;
       void _exhaustive;

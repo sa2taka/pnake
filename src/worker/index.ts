@@ -46,14 +46,8 @@ async function dispatch(req: WorkerRequest): Promise<void> {
         return;
       }
       case "getPageOperations": {
-        send({
-          id: req.id,
-          ok: false,
-          error: {
-            name: "NotImplemented",
-            message: "getPageOperations is not implemented yet",
-          },
-        });
+        const result = await state.getPageOperations(req.pageNumber);
+        send({ id: req.id, ok: true, type: "pageOperations", result });
         return;
       }
       case "cancel": {

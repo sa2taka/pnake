@@ -14,3 +14,30 @@
   color: var(--fg-faint);
   font-size: var(--fz-sm);
 }
+
+.renderpanel-canvas-wrap {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--bg-canvas);
+  position: relative;
+}
+
+.renderpanel-canvas-wrap canvas {
+  background: white;
+  box-shadow: 0 0 0 1px var(--hairline-strong);
+  max-width: 100%;
+  height: auto;
+}
+
+.renderpanel-status {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  color: var(--fg-faint);
+  font-size: var(--fz-sm);
+  font-family: var(--font-mono);
+}

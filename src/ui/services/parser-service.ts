@@ -12,7 +12,7 @@
  */
 
 import type { ObjectId, PdfAnalysis, PdfObjectDetail } from "../../shared/ir-types";
-import type { StreamResult } from "../../shared/protocol";
+import type { PageOperationsResult, StreamResult } from "../../shared/protocol";
 import { ParserState } from "../../worker/handlers";
 import { WorkerClient } from "../workerClient";
 
@@ -20,6 +20,7 @@ export interface ParserService {
   load(buffer: ArrayBuffer, fileName?: string): Promise<PdfAnalysis>;
   getObjectDetail(objectId: ObjectId): Promise<PdfObjectDetail>;
   getStream(objectId: ObjectId, mode: "raw" | "decoded"): Promise<StreamResult>;
+  getPageOperations(pageNumber: number): Promise<PageOperationsResult>;
   dispose(): void;
 }
 
@@ -37,6 +38,10 @@ export class WorkerParserService implements ParserService {
 
   getStream(objectId: ObjectId, mode: "raw" | "decoded"): Promise<StreamResult> {
     return this.client.getStream(objectId, mode);
+  }
+
+  getPageOperations(pageNumber: number): Promise<PageOperationsResult> {
+    return this.client.getPageOperations(pageNumber);
   }
 
   dispose(): void {
@@ -58,6 +63,10 @@ export class InProcessParserService implements ParserService {
 
   getStream(objectId: ObjectId, mode: "raw" | "decoded"): Promise<StreamResult> {
     return this.state.getStream(objectId, mode);
+  }
+
+  getPageOperations(pageNumber: number): Promise<PageOperationsResult> {
+    return this.state.getPageOperations(pageNumber);
   }
 
   dispose(): void {
