@@ -2,20 +2,22 @@
  * Typed facade over the parser worker.
  *
  * Owns the Worker instance, correlates request/response ids, and
- * surfaces a Promise-based API for the UI layer.
+ * surfaces a Promise-based API for the UI layer. The generic on
+ * `call()` is driven by the method name, so the result type is
+ * derived from `RpcMethods` and callers cannot ask for the wrong T.
  */
 
 import type {
   LoadResult,
   PageOperationsResult,
+  RpcMethod,
+  RpcParams,
+  RpcResult,
   StreamResult,
   WorkerRequest,
   WorkerResponse,
 } from "../shared/protocol";
-import type { PdfObjectDetail } from "../shared/ir-types";
-
-type DistributiveOmit<T, K extends keyof any> = T extends unknown ? Omit<T, K> : never;
-type RequestBody = DistributiveOmit<WorkerRequest, "id">;
+import type { ObjectId, PdfObjectDetail } from "../shared/ir-types";
 
 export interface CallOptions {
   onProgress?: (progress: number, phase?: string) => void;
@@ -69,7 +71,7 @@ export class WorkerClient {
   }
 
   ping(payload: unknown = null, options: CallOptions = {}): Promise<unknown> {
-    return this.call({ type: "ping", payload }, undefined, options);
+    return this.call("ping", { payload }, undefined, options);
   }
 
   load(
@@ -77,47 +79,42 @@ export class WorkerClient {
     fileName?: string,
     options: CallOptions = {},
   ): Promise<LoadResult> {
-    return this.call<LoadResult>(
-      { type: "load", bytes, fileName },
-      [bytes],
-      options,
-    );
+    return this.call("load", { bytes, fileName }, [bytes], options);
   }
 
-  getObjectDetail(objectId: string, options: CallOptions = {}): Promise<PdfObjectDetail> {
-    return this.call<PdfObjectDetail>({ type: "getObjectDetail", objectId }, undefined, options);
+  getObjectDetail(objectId: ObjectId, options: CallOptions = {}): Promise<PdfObjectDetail> {
+    return this.call("getObjectDetail", { objectId }, undefined, options);
   }
 
   getStream(
-    objectId: string,
+    objectId: ObjectId,
     mode: "raw" | "decoded",
     options: CallOptions = {},
   ): Promise<StreamResult> {
-    return this.call<StreamResult>({ type: "getStream", objectId, mode }, undefined, options);
+    return this.call("getStream", { objectId, mode }, undefined, options);
   }
 
   getPageOperations(
     pageNumber: number,
     options: CallOptions = {},
   ): Promise<PageOperationsResult> {
-    return this.call<PageOperationsResult>(
-      { type: "getPageOperations", pageNumber },
-      undefined,
-      options,
-    );
+    return this.call("getPageOperations", { pageNumber }, undefined, options);
   }
 
-  private call<T>(
-    req: RequestBody,
+  private call<M extends RpcMethod>(
+    method: M,
+    params: RpcParams<M>,
     transfer: Transferable[] | undefined,
     options: CallOptions,
-  ): Promise<T> {
+  ): Promise<RpcResult<M>> {
     if (this.closed) {
       return Promise.reject(this.closedReason ?? new Error("Worker is closed"));
     }
     const id = this.nextId++;
-    return new Promise<T>((resolve, reject) => {
+    return new Promise<RpcResult<M>>((resolve, reject) => {
       this.pending.set(id, {
+        // The Pending map stores heterogeneous request types behind a single
+        // entry shape; the cast here is the one inherent variance point.
         resolve: resolve as (value: unknown) => void,
         reject,
         onProgress: options.onProgress,
@@ -134,7 +131,11 @@ export class WorkerClient {
           () => {
             if (this.pending.has(id)) {
               this.pending.delete(id);
-              this.worker.postMessage({ id: this.nextId++, type: "cancel", targetId: id });
+              this.worker.postMessage({
+                id: this.nextId++,
+                type: "cancel",
+                targetId: id,
+              });
               reject(new DOMException("Aborted", "AbortError"));
             }
           },
@@ -142,7 +143,7 @@ export class WorkerClient {
         );
       }
 
-      const message = { ...req, id } as WorkerRequest;
+      const message: WorkerRequest = { id, type: method, ...params } as WorkerRequest;
       if (transfer && transfer.length > 0) {
         this.worker.postMessage(message, transfer);
       } else {

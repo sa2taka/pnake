@@ -37,7 +37,7 @@ describe("WorkerClient", () => {
     const { client, fake } = makeClient();
     fake.responder = (req) =>
       req.type === "ping"
-        ? { id: req.id, ok: true, type: "pong", result: req.payload }
+        ? { id: req.id, ok: true, type: "ping", result: req.payload }
         : undefined;
 
     const result = await client.ping("hello");
@@ -59,7 +59,7 @@ describe("WorkerClient", () => {
     const { client, fake } = makeClient();
     fake.responder = (req) =>
       req.type === "ping"
-        ? { id: req.id, ok: true, type: "pong", result: req.payload }
+        ? { id: req.id, ok: true, type: "ping", result: req.payload }
         : undefined;
 
     const [a, b, c] = await Promise.all([client.ping("a"), client.ping("b"), client.ping("c")]);
@@ -79,7 +79,7 @@ describe("WorkerClient", () => {
           data: { id: req.id, progress: 0.5, phase: "loading" } satisfies WorkerResponse,
         }),
       );
-      return { id: req.id, ok: true, type: "pong", result: null };
+      return { id: req.id, ok: true, type: "ping", result: null };
     };
 
     await client.ping(null, { onProgress: (p) => progress.push(p) });

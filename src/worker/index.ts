@@ -3,11 +3,11 @@
  *
  * Thin transport adapter on top of the transport-neutral
  * ParserSession (in src/core/). This file owns:
- *   - the message contract (WorkerRequest / WorkerResponse)
- *   - dispatching incoming requests to the session
+ *   - dispatching incoming WorkerRequests to the session
  *   - serializing errors back to the main thread
  *
- * Anything PDF-specific lives in ParserSession.
+ * The wire shape itself is declared in shared/protocol.ts so both sides
+ * derive request and response envelopes from a single RpcMethods map.
  */
 
 /// <reference lib="webworker" />
@@ -28,35 +28,35 @@ function send(res: WorkerResponse, transfer?: Transferable[]): void {
 }
 
 async function dispatch(req: WorkerRequest): Promise<void> {
+  if (req.type === "cancel") {
+    // Cancellation is handled inside long-running handlers; this is a no-op
+    // when no work is in flight for the given id.
+    return;
+  }
   try {
     switch (req.type) {
       case "ping": {
-        send({ id: req.id, ok: true, type: "pong", result: req.payload ?? null });
+        send({ id: req.id, ok: true, type: "ping", result: req.payload ?? null });
         return;
       }
       case "load": {
         const result = await session.load(req.bytes);
-        send({ id: req.id, ok: true, type: "loaded", result });
+        send({ id: req.id, ok: true, type: "load", result });
         return;
       }
       case "getObjectDetail": {
         const result = session.getObjectDetail(req.objectId);
-        send({ id: req.id, ok: true, type: "objectDetail", result });
+        send({ id: req.id, ok: true, type: "getObjectDetail", result });
         return;
       }
       case "getStream": {
         const result = await session.getStream(req.objectId, req.mode);
-        send({ id: req.id, ok: true, type: "stream", result }, [result.bytes]);
+        send({ id: req.id, ok: true, type: "getStream", result }, [result.bytes]);
         return;
       }
       case "getPageOperations": {
         const result = await session.getPageOperations(req.pageNumber);
-        send({ id: req.id, ok: true, type: "pageOperations", result });
-        return;
-      }
-      case "cancel": {
-        // Cancellation is handled inside long-running handlers; this is a no-op
-        // when no work is in flight for the given id.
+        send({ id: req.id, ok: true, type: "getPageOperations", result });
         return;
       }
     }

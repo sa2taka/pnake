@@ -1,6 +1,11 @@
 /**
  * Wire protocol between the main thread and the parser worker.
  * The shape MUST be structured-clone-safe (no functions, no class instances).
+ *
+ * The single source of truth is `RpcMethods` — adding a new method is one
+ * entry, not five hand-rolled union arms. Request and success envelopes
+ * are derived; only the `cancel` and `progress` wires live outside the
+ * method map because they don't fit a "one request, one result" shape.
  */
 
 import type {
@@ -15,31 +20,8 @@ import type {
 } from "./ir-types";
 
 // =============================================================================
-// Requests (main -> worker)
+// Result payloads (exported by name for callers)
 // =============================================================================
-
-export type WorkerRequest =
-  | { id: number; type: "ping"; payload?: unknown }
-  | { id: number; type: "load"; bytes: ArrayBuffer; fileName?: string }
-  | { id: number; type: "getObjectDetail"; objectId: ObjectId }
-  | {
-      id: number;
-      type: "getStream";
-      objectId: ObjectId;
-      mode: "raw" | "decoded";
-    }
-  | { id: number; type: "getPageOperations"; pageNumber: number }
-  | { id: number; type: "cancel"; targetId: number };
-
-// =============================================================================
-// Responses (worker -> main)
-// =============================================================================
-
-export interface WorkerError {
-  name: string;
-  message: string;
-  stack?: string;
-}
 
 export type LoadResult = {
   analysis: PdfAnalysis;
@@ -60,14 +42,66 @@ export type PageOperationsResult = {
   visualElements: PdfVisualElement[];
 };
 
+// =============================================================================
+// Method map — single source of truth for request/response shape
+// =============================================================================
+
+export interface RpcMethods {
+  ping: { params: { payload?: unknown }; result: unknown };
+  load: { params: { bytes: ArrayBuffer; fileName?: string }; result: LoadResult };
+  getObjectDetail: { params: { objectId: ObjectId }; result: PdfObjectDetail };
+  getStream: {
+    params: { objectId: ObjectId; mode: "raw" | "decoded" };
+    result: StreamResult;
+  };
+  getPageOperations: {
+    params: { pageNumber: number };
+    result: PageOperationsResult;
+  };
+}
+
+export type RpcMethod = keyof RpcMethods;
+export type RpcParams<M extends RpcMethod> = RpcMethods[M]["params"];
+export type RpcResult<M extends RpcMethod> = RpcMethods[M]["result"];
+
+// =============================================================================
+// Wire envelopes (derived from RpcMethods)
+// =============================================================================
+
+type RpcRequest = {
+  [K in RpcMethod]: { id: number; type: K } & RpcParams<K>;
+}[RpcMethod];
+
+/**
+ * Out-of-band cancellation message. Not part of RpcMethods because it
+ * targets another request by id rather than returning its own result.
+ */
+export type CancelRequest = { id: number; type: "cancel"; targetId: number };
+
+export type WorkerRequest = RpcRequest | CancelRequest;
+
+type RpcSuccess = {
+  [K in RpcMethod]: { id: number; ok: true; type: K; result: RpcResult<K> };
+}[RpcMethod];
+
+export interface WorkerError {
+  name: string;
+  message: string;
+  stack?: string;
+}
+
+export type WorkerErrorResponse = { id: number; ok: false; error: WorkerError };
+
+export type WorkerProgressResponse = {
+  id: number;
+  progress: number;
+  phase?: string;
+};
+
 export type WorkerResponse =
-  | { id: number; ok: true; type: "pong"; result: unknown }
-  | { id: number; ok: true; type: "loaded"; result: LoadResult }
-  | { id: number; ok: true; type: "objectDetail"; result: PdfObjectDetail }
-  | { id: number; ok: true; type: "stream"; result: StreamResult }
-  | { id: number; ok: true; type: "pageOperations"; result: PageOperationsResult }
-  | { id: number; ok: false; error: WorkerError }
-  | { id: number; progress: number; phase?: string };
+  | RpcSuccess
+  | WorkerErrorResponse
+  | WorkerProgressResponse;
 
 // =============================================================================
 // Error serialization

@@ -11,31 +11,26 @@
  * rest of the UI never knows which one it is talking to.
  */
 
+import type { ObjectId, PdfObjectDetail } from "../../shared/ir-types";
 import type {
-  ObjectId,
-  PdfAnalysis,
-  PdfObjectDetail,
-  PdfStructTree,
-} from "../../shared/ir-types";
-import type { PageOperationsResult, StreamResult } from "../../shared/protocol";
+  LoadResult,
+  PageOperationsResult,
+  StreamResult,
+} from "../../shared/protocol";
 import { ParserSession } from "../../core/parser-session";
 import { WorkerClient } from "../workerClient";
-
-export interface LoadOutput {
-  analysis: PdfAnalysis;
-  structTree?: PdfStructTree;
-}
 
 /**
  * Transport-agnostic call options.
  *
  * The Worker implementation forwards these to WorkerClient, which sends
- * an out-of-band `cancel` message when the signal aborts and pipes any
- * `progress` events from the worker back through `onProgress`.
+ * an out-of-band `cancel` message when the signal aborts. (Today the
+ * worker treats `cancel` as a no-op — the caller's promise rejects, but
+ * the worker keeps running.)
  *
  * The in-process implementation honours `signal` by throwing AbortError
- * before/after each async step. `onProgress` is best-effort: it fires
- * only at the natural step boundaries the parser already exposes.
+ * at the natural async boundaries. `onProgress` is reserved for future
+ * streaming progress; neither implementation invokes it yet.
  */
 export interface CallOptions {
   signal?: AbortSignal;
@@ -47,7 +42,7 @@ export interface ParserService {
     buffer: ArrayBuffer,
     fileName?: string,
     options?: CallOptions,
-  ): Promise<LoadOutput>;
+  ): Promise<LoadResult>;
   getObjectDetail(objectId: ObjectId, options?: CallOptions): Promise<PdfObjectDetail>;
   getStream(
     objectId: ObjectId,
@@ -61,13 +56,12 @@ export interface ParserService {
 export class WorkerParserService implements ParserService {
   private readonly client = WorkerClient.spawn();
 
-  async load(
+  load(
     buffer: ArrayBuffer,
     fileName?: string,
     options?: CallOptions,
-  ): Promise<LoadOutput> {
-    const { analysis, structTree } = await this.client.load(buffer, fileName, options);
-    return { analysis, ...(structTree ? { structTree } : {}) };
+  ): Promise<LoadResult> {
+    return this.client.load(buffer, fileName, options);
   }
 
   getObjectDetail(
@@ -104,11 +98,11 @@ export class InProcessParserService implements ParserService {
     buffer: ArrayBuffer,
     _fileName?: string,
     options?: CallOptions,
-  ): Promise<LoadOutput> {
+  ): Promise<LoadResult> {
     throwIfAborted(options?.signal);
-    const { analysis, structTree } = await this.session.load(buffer);
+    const result = await this.session.load(buffer);
     throwIfAborted(options?.signal);
-    return { analysis, ...(structTree ? { structTree } : {}) };
+    return result;
   }
 
   async getObjectDetail(
