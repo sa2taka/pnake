@@ -1,0 +1,185 @@
+/**
+ * Indirect object reader — given a byte offset, parses `N G obj … endobj`.
+ *
+ * Stream bodies are NOT decoded here; the reader only locates the byte
+ * range that contains the stream data and produces a StreamHandle.
+ * Decoding is the responsibility of the stream/filter pipeline (added
+ * in a later commit).
+ *
+ * Length resolution policy:
+ *  - If /Length is an integer literal in the dict, trust it.
+ *  - If /Length is missing or is an indirect reference, scan forward
+ *    for an `endstream` keyword preceded by whitespace.
+ */
+
+import type { ByteRange, ObjectId, PdfDict, PdfValue } from "../../../shared/ir-types";
+import { objectId } from "../../../shared/ir-types";
+import { ByteReader, isEol, isWhitespace, toBytes } from "../io/byte-reader";
+import { Lexer } from "../lex/lexer";
+import { TokenStream } from "../lex/token-stream";
+import {
+  ParseError,
+  ValueParser,
+  dictGet,
+  expectInt,
+  extractFilters,
+} from "./value-parser";
+
+export interface IndirectObject {
+  id: ObjectId;
+  number: number;
+  generation: number;
+  range: ByteRange;
+  value: PdfValue;
+  streamRange?: ByteRange;
+}
+
+const KW_OBJ = toBytes("obj");
+const KW_ENDOBJ = toBytes("endobj");
+const KW_STREAM = toBytes("stream");
+const KW_ENDSTREAM = toBytes("endstream");
+
+export class IndirectObjectReader {
+  constructor(public reader: ByteReader) {}
+
+  readAt(offset: number): IndirectObject {
+    this.reader.seek(offset);
+    const lexer = new Lexer(this.reader);
+    const tokens = new TokenStream(lexer);
+
+    const numTok = tokens.consume();
+    const genTok = tokens.consume();
+    const objKw = tokens.consume();
+    if (
+      numTok.kind !== "integer" ||
+      genTok.kind !== "integer" ||
+      objKw.kind !== "keyword" ||
+      objKw.value !== "obj"
+    ) {
+      throw new ParseError(
+        `Not an indirect object header at offset ${offset}: got ${numTok.kind} ${genTok.kind} ${objKw.kind}`,
+      );
+    }
+
+    const number = numTok.value;
+    const generation = genTok.value;
+    const start = numTok.range.start;
+
+    const parser = new ValueParser(tokens);
+    let value = parser.parseValue();
+
+    // Optional: `stream` follows the value (dict). Spec requires CRLF or LF
+    // right after the stream keyword.
+    const after = tokens.peek();
+    let streamRange: ByteRange | undefined;
+    let endObjRange: { start: number; end: number };
+
+    if (after.kind === "keyword" && after.value === "stream") {
+      tokens.consume();
+      // Spec: stream data begins immediately after the EOL following "stream".
+      // Buffer flush — reader.pos is now somewhere past the keyword.
+      const reader = this.reader;
+      // Skip exactly one EOL (LF or CRLF) — but tolerate other whitespace.
+      skipSingleEol(reader);
+
+      const dataStart = reader.pos;
+      const dict = value.kind === "dict" ? value.entries : (undefined as PdfDict | undefined);
+      const literalLength = dict ? expectInt(dictGet(value, "Length")) : undefined;
+
+      let dataEnd: number;
+      if (literalLength != null && literalLength >= 0 && dataStart + literalLength <= reader.end) {
+        dataEnd = dataStart + literalLength;
+        reader.seek(dataEnd);
+      } else {
+        // Scan for endstream keyword, then trim trailing EOL.
+        const endIdx = reader.indexOf(KW_ENDSTREAM, dataStart);
+        if (endIdx === -1) {
+          throw new ParseError(`Missing endstream for object ${number} ${generation}`);
+        }
+        dataEnd = endIdx;
+        while (dataEnd > dataStart) {
+          const b = reader.bytes[dataEnd - 1];
+          if (b === undefined || !isEol(b)) break;
+          dataEnd--;
+        }
+        reader.seek(endIdx);
+      }
+      streamRange = { start: dataStart, end: dataEnd };
+
+      // Consume endstream keyword.
+      tokens.reset();
+      reader.skipWhile(isWhitespace);
+      if (!reader.consumeIf(KW_ENDSTREAM)) {
+        throw new ParseError(`Expected endstream for object ${number} ${generation}`);
+      }
+
+      // Turn the dict value into a stream value carrying a handle.
+      const dictEntries = value.kind === "dict" ? value.entries : ({} as PdfDict);
+      value = {
+        kind: "stream",
+        dict: dictEntries,
+        handle: {
+          objectRef: objectId(number, generation),
+          filters: extractFilters(dictEntries),
+          length: dataEnd - dataStart,
+        },
+      };
+    }
+
+    // Consume endobj.
+    tokens.reset();
+    const consumed = consumeKeyword(this.reader, KW_ENDOBJ);
+    endObjRange = consumed
+      ? { start: consumed.start, end: consumed.end }
+      : { start: this.reader.pos, end: this.reader.pos };
+
+    return {
+      id: objectId(number, generation),
+      number,
+      generation,
+      range: { start, end: endObjRange.end },
+      value,
+      streamRange,
+    };
+  }
+
+  /**
+   * Header-only: returns just the {number, generation, headerEnd} so a
+   * cross-reference table can be built without parsing the value.
+   */
+  peekHeader(offset: number): { number: number; generation: number; headerEnd: number } | null {
+    this.reader.seek(offset);
+    const lexer = new Lexer(this.reader);
+    const tokens = new TokenStream(lexer);
+    const a = tokens.consume();
+    const b = tokens.consume();
+    const c = tokens.consume();
+    if (a.kind !== "integer" || b.kind !== "integer" || c.kind !== "keyword" || c.value !== "obj") {
+      return null;
+    }
+    return { number: a.value, generation: b.value, headerEnd: c.range.end };
+  }
+}
+
+function skipSingleEol(reader: ByteReader): void {
+  const b = reader.peek();
+  if (b === 0x0d) {
+    reader.advance(1);
+    if (reader.peek() === 0x0a) reader.advance(1);
+  } else if (b === 0x0a) {
+    reader.advance(1);
+  } else {
+    // Tolerant: skip any whitespace before the data.
+    reader.skipWhile(isWhitespace);
+  }
+}
+
+function consumeKeyword(reader: ByteReader, keyword: Uint8Array): ByteRange | null {
+  reader.skipWhile(isWhitespace);
+  const start = reader.pos;
+  if (!reader.consumeIf(keyword)) return null;
+  return { start, end: reader.pos };
+}
+
+// Re-export so the search above stays import-stable.
+export { KW_OBJ, KW_ENDOBJ, KW_STREAM, KW_ENDSTREAM };
