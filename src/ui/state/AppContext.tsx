@@ -188,35 +188,37 @@ export function AppProvider({ children, parserService }: AppProviderProps): JSX.
   }, []);
 
   // Fetch operations + visual elements whenever the current page changes.
+  //
+  // We deliberately do not depend on pageOperationsStatus: the dispatch we
+  // perform inside this effect would otherwise cancel its own in-flight
+  // request as the status flips idle → loading and the effect re-runs.
+  // Instead, an inFlight ref tracks which page is being fetched.
+  const inFlightRef = useRef<number | null>(null);
   useEffect(() => {
     if (state.status !== "loaded") return;
-    if (state.pageOperationsStatus !== "idle") return;
     if (!state.analysis?.pages[state.currentPage - 1]) return;
-    let cancelled = false;
-    dispatch({ type: "pageOpsStart", pageNumber: state.currentPage });
+    if (state.pageOperations?.pageNumber === state.currentPage) return;
+    if (inFlightRef.current === state.currentPage) return;
+
+    const target = state.currentPage;
+    inFlightRef.current = target;
+    dispatch({ type: "pageOpsStart", pageNumber: target });
     parser
-      .getPageOperations(state.currentPage)
+      .getPageOperations(target)
       .then((result) => {
-        if (!cancelled) dispatch({ type: "pageOpsSuccess", result });
+        if (inFlightRef.current !== target) return;
+        inFlightRef.current = null;
+        dispatch({ type: "pageOpsSuccess", result });
       })
       .catch((err) => {
-        if (!cancelled) {
-          dispatch({
-            type: "pageOpsError",
-            error: err instanceof Error ? err.message : String(err),
-          });
-        }
+        if (inFlightRef.current !== target) return;
+        inFlightRef.current = null;
+        dispatch({
+          type: "pageOpsError",
+          error: err instanceof Error ? err.message : String(err),
+        });
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    state.status,
-    state.currentPage,
-    state.pageOperationsStatus,
-    state.analysis,
-    parser,
-  ]);
+  }, [state.status, state.currentPage, state.analysis, state.pageOperations, parser]);
 
   const value = useMemo<AppContextValue>(
     () => ({ state, dispatch, parser }),

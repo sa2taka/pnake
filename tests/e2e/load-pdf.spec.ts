@@ -89,18 +89,75 @@ test.describe("pnake — load tracemonkey.pdf", () => {
 
     await page.getByRole("button", { name: "Next page" }).click();
     await expect(page.getByTestId("toolbar-page")).toContainText("2 /");
+    // Wait until the new page's operator list has loaded with content.
     await expect.poll(async () => {
-      return (
+      const rows = await page.locator('[data-testid^="tree-op-"]').count();
+      if (rows === 0) return null;
+      const text = (
         await page.locator('[data-testid^="tree-op-"]').allInnerTexts()
       )
         .slice(0, 8)
         .join("\n");
-    }).not.toBe(page1Snippet);
+      return text !== page1Snippet ? text : null;
+    }).not.toBeNull();
 
     const page2Count = await page.locator('[data-testid^="tree-op-"]').count();
     expect(page2Count).toBeGreaterThan(0);
     // Sanity: the two pages should be measurably different in size.
     expect(Math.abs(page2Count - page1Count)).toBeGreaterThan(0);
+  });
+
+  test("clicking an overlay text element selects the source operation", async ({ page }) => {
+    await page.goto("/");
+    const input = page.getByTestId("file-input");
+    await input.setInputFiles(TRACEMONKEY);
+
+    // Wait for the canvas to finish drawing and the overlay to appear.
+    const canvas = page.getByTestId("render-canvas");
+    await expect.poll(async () => Number(await canvas.getAttribute("width"))).toBeGreaterThan(0);
+    const overlay = page.getByTestId("render-overlay");
+    await expect(overlay).toBeVisible();
+
+    // Click the first text-run rect — pages are dense, so one is guaranteed.
+    const firstTextRect = overlay.locator('rect[data-kind="text-run"]').first();
+    await expect(firstTextRect).toBeVisible();
+    await firstTextRect.click({ force: true });
+
+    // The detail panel must reflect the page:1:op:NN selection.
+    const detail = page.getByTestId("detail-panel");
+    await expect(detail).toContainText(/page:1:op:\d+/);
+    await expect(detail).toContainText(/Operator/);
+
+    // Switch the tree to Content mode and confirm the matching row is selected.
+    await page
+      .getByRole("toolbar")
+      .locator("select")
+      .selectOption({ label: "Content" });
+    const selected = page.locator('[data-testid^="tree-op-"][data-selected="true"]');
+    await expect(selected.first()).toBeVisible();
+  });
+
+  test("Human tab shows operator explanation in Japanese", async ({ page }) => {
+    await page.goto("/");
+    const input = page.getByTestId("file-input");
+    await input.setInputFiles(TRACEMONKEY);
+
+    const canvas = page.getByTestId("render-canvas");
+    await expect.poll(async () => Number(await canvas.getAttribute("width"))).toBeGreaterThan(0);
+
+    // Switch to Content view and click the first operation row.
+    await page
+      .getByRole("toolbar")
+      .locator("select")
+      .selectOption({ label: "Content" });
+    await page.locator('[data-testid^="tree-op-"]').first().click();
+
+    const detail = page.getByTestId("detail-panel");
+    const humanTab = detail.getByRole("tab", { name: /Human/i });
+    await humanTab.click();
+    // The explanation dictionary returns Japanese text for known operators —
+    // the tracemonkey first content op is almost always "q".
+    await expect(detail).toContainText(/グラフィックス状態|テキストブロック|フォント|線の太さ|位置/);
   });
 
   test("the bottom drawer renders a hex view of stream bytes", async ({ page }) => {
