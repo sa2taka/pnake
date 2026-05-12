@@ -84,21 +84,43 @@ export const initialState: AppState = {
 export function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "loadStart":
-      return { ...initialState, status: "loading", fileName: action.fileName };
+      // Drop EVERY load-derived field when a new file starts loading — the
+      // previous analysis, structTree, fileBytes, and any in-flight error
+      // must not bleed into the next document.
+      return {
+        ...initialState,
+        status: "loading",
+        ...(action.fileName ? { fileName: action.fileName } : {}),
+      };
     case "loadSuccess":
       return {
         ...state,
         status: "loaded",
         analysis: action.analysis,
-        structTree: action.structTree,
-        fileName: action.fileName ?? state.fileName,
-        fileBytes: action.fileBytes ?? state.fileBytes,
+        ...(action.structTree
+          ? { structTree: action.structTree }
+          : { structTree: undefined }),
+        ...(action.fileName ? { fileName: action.fileName } : {}),
+        ...(action.fileBytes ? { fileBytes: action.fileBytes } : {}),
         error: undefined,
         selectedNodeId: firstSelectableId(action.analysis),
         currentPage: 1,
+        pageOperations: undefined,
+        pageOperationsStatus: "idle",
+        pageOperationsError: undefined,
       };
     case "loadError":
-      return { ...state, status: "error", error: action.error };
+      // Keep the file name so the toolbar can still show which file failed,
+      // but clear analysis-derived state so consumers cannot read stale data.
+      return {
+        ...state,
+        status: "error",
+        error: action.error,
+        analysis: undefined,
+        structTree: undefined,
+        pageOperations: undefined,
+        pageOperationsStatus: "idle",
+      };
     case "select":
       return {
         ...state,
@@ -119,12 +141,14 @@ export function appReducer(state: AppState, action: Action): AppState {
         currentPage: action.pageNumber,
         pageOperations: undefined,
         pageOperationsStatus: "idle",
+        pageOperationsError: undefined,
       };
     case "pageOpsStart":
       return {
         ...state,
         currentPage: action.pageNumber,
         pageOperationsStatus: "loading",
+        pageOperationsError: undefined,
       };
     case "pageOpsSuccess":
       return {
@@ -138,6 +162,7 @@ export function appReducer(state: AppState, action: Action): AppState {
         ...state,
         pageOperationsStatus: "error",
         pageOperationsError: action.error,
+        pageOperations: undefined,
       };
     default: {
       const _exhaustive: never = action;
@@ -145,6 +170,32 @@ export function appReducer(state: AppState, action: Action): AppState {
       return state;
     }
   }
+}
+
+// =============================================================================
+// Type guards
+// =============================================================================
+//
+// The flat AppState shape doesn't constrain combinations like `status:
+// "loaded" + analysis: undefined` at the type level — the reducer is the
+// invariant gatekeeper. Until we restructure into discriminated unions,
+// these guards give consumers a single, typed entry point instead of
+// independent `state.status === "loaded" && state.analysis` checks
+// scattered through every panel.
+
+export function isAnalysisLoaded(
+  state: AppState,
+): state is AppState & { status: "loaded"; analysis: PdfAnalysis } {
+  return state.status === "loaded" && state.analysis !== undefined;
+}
+
+export function isPageOpsLoaded(
+  state: AppState,
+): state is AppState & {
+  pageOperationsStatus: "loaded";
+  pageOperations: PageOperationsResult;
+} {
+  return state.pageOperationsStatus === "loaded" && state.pageOperations !== undefined;
 }
 
 function firstSelectableId(analysis: PdfAnalysis): string | undefined {
