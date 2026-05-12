@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ParserState } from "../../../src/worker/handlers";
+import { ParserSession } from "../../../src/core/parser-session";
 import { toBytes } from "../../../src/worker/pdf/io/byte-reader";
 
 function buildClassicPdf(): ArrayBuffer {
@@ -30,16 +30,16 @@ function buildClassicPdf(): ArrayBuffer {
   return bytes.slice().buffer;
 }
 
-describe("ParserState", () => {
+describe("ParserSession", () => {
   it("loads a PDF and returns the manifest", async () => {
-    const state = new ParserState();
+    const state = new ParserSession();
     const { analysis } = await state.load(buildClassicPdf());
     expect(analysis.fileInfo.pdfVersion).toBe("1.7");
     expect(analysis.pages).toHaveLength(1);
   });
 
   it("returns object detail with value and raw text", async () => {
-    const state = new ParserState();
+    const state = new ParserSession();
     await state.load(buildClassicPdf());
     const detail = state.getObjectDetail("obj:1:0");
     expect(detail.id).toBe("obj:1:0");
@@ -50,13 +50,13 @@ describe("ParserState", () => {
   });
 
   it("rejects detail requests for unknown objects", async () => {
-    const state = new ParserState();
+    const state = new ParserSession();
     await state.load(buildClassicPdf());
     expect(() => state.getObjectDetail("obj:999:0")).toThrow(/not found/);
   });
 
   it("throws before a PDF is loaded", () => {
-    const state = new ParserState();
+    const state = new ParserSession();
     expect(() => state.getObjectDetail("obj:1:0")).toThrow(/No PDF loaded/);
   });
 });

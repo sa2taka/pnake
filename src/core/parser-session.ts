@@ -1,8 +1,14 @@
 /**
- * Worker-side state and handlers.
+ * Transport-neutral PDF parsing session.
  *
- * Exposed as a class so we can construct it in tests without spinning
- * up a real worker thread.
+ * This class lives in `src/core/` so both the Worker dispatcher and
+ * the in-process ParserService implementation can share it without
+ * crossing the UI ↔ worker boundary. The worker entry adapts message
+ * events onto this class; the InProcessParserService talks to it
+ * directly on the main thread.
+ *
+ * No DOM, no worker-only globals are referenced — anything that
+ * needs them belongs in a transport adapter, not here.
  */
 
 import type {
@@ -13,16 +19,16 @@ import type {
   PdfValue,
 } from "../shared/ir-types";
 import type { LoadResult, PageOperationsResult, StreamResult } from "../shared/protocol";
-import { ByteReader, asciiString } from "./pdf/io/byte-reader";
-import { parseContentStream } from "./pdf/content/parser";
-import { buildVisualElements } from "./pdf/content/visual-elements";
-import type { IndirectObject } from "./pdf/parse/object-reader";
-import { extractFilters } from "./pdf/parse/value-parser";
-import { resolveResources } from "./pdf/resources/resolver";
-import { parseToUnicodeCMap, type ToUnicodeCMap } from "./pdf/resources/cmap";
-import { decodeStream, extractDecodeParms } from "./pdf/streams/decode";
-import { parsePdf } from "./pdf/structure/manifest";
-import { buildStructTree } from "./pdf/structure/struct-tree";
+import { ByteReader, asciiString } from "../worker/pdf/io/byte-reader";
+import { parseContentStream } from "../worker/pdf/content/parser";
+import { buildVisualElements } from "../worker/pdf/content/visual-elements";
+import type { IndirectObject } from "../worker/pdf/parse/object-reader";
+import { extractFilters } from "../worker/pdf/parse/value-parser";
+import { resolveResources } from "../worker/pdf/resources/resolver";
+import { parseToUnicodeCMap, type ToUnicodeCMap } from "../worker/pdf/resources/cmap";
+import { decodeStream, extractDecodeParms } from "../worker/pdf/streams/decode";
+import { parsePdf } from "../worker/pdf/structure/manifest";
+import { buildStructTree } from "../worker/pdf/structure/struct-tree";
 import { LruCache } from "./lru-cache";
 
 interface State {
@@ -49,7 +55,7 @@ export class StaleSessionError extends Error {
   }
 }
 
-export class ParserState {
+export class ParserSession {
   private state?: State;
   /** Monotonic id bumped on every load() entry (not completion). */
   private currentSessionId = 0;

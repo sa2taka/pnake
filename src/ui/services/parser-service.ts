@@ -3,7 +3,7 @@
  *
  * Two implementations:
  *   - WorkerParserService: spawns a real Web Worker (production).
- *   - InProcessParserService: runs ParserState on the main thread,
+ *   - InProcessParserService: runs ParserSession on the main thread,
  *     useful for tests in jsdom and as a fallback in environments
  *     where Workers aren't available.
  *
@@ -18,7 +18,7 @@ import type {
   PdfStructTree,
 } from "../../shared/ir-types";
 import type { PageOperationsResult, StreamResult } from "../../shared/protocol";
-import { ParserState } from "../../worker/handlers";
+import { ParserSession } from "../../core/parser-session";
 import { WorkerClient } from "../workerClient";
 
 export interface LoadOutput {
@@ -98,7 +98,7 @@ export class WorkerParserService implements ParserService {
 }
 
 export class InProcessParserService implements ParserService {
-  private readonly state = new ParserState();
+  private readonly session = new ParserSession();
 
   async load(
     buffer: ArrayBuffer,
@@ -106,7 +106,7 @@ export class InProcessParserService implements ParserService {
     options?: CallOptions,
   ): Promise<LoadOutput> {
     throwIfAborted(options?.signal);
-    const { analysis, structTree } = await this.state.load(buffer);
+    const { analysis, structTree } = await this.session.load(buffer);
     throwIfAborted(options?.signal);
     return { analysis, ...(structTree ? { structTree } : {}) };
   }
@@ -116,7 +116,7 @@ export class InProcessParserService implements ParserService {
     options?: CallOptions,
   ): Promise<PdfObjectDetail> {
     throwIfAborted(options?.signal);
-    return this.state.getObjectDetail(objectId);
+    return this.session.getObjectDetail(objectId);
   }
 
   async getStream(
@@ -125,7 +125,7 @@ export class InProcessParserService implements ParserService {
     options?: CallOptions,
   ): Promise<StreamResult> {
     throwIfAborted(options?.signal);
-    const result = await this.state.getStream(objectId, mode);
+    const result = await this.session.getStream(objectId, mode);
     throwIfAborted(options?.signal);
     return result;
   }
@@ -135,7 +135,7 @@ export class InProcessParserService implements ParserService {
     options?: CallOptions,
   ): Promise<PageOperationsResult> {
     throwIfAborted(options?.signal);
-    const result = await this.state.getPageOperations(pageNumber);
+    const result = await this.session.getPageOperations(pageNumber);
     throwIfAborted(options?.signal);
     return result;
   }

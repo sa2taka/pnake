@@ -206,3 +206,32 @@ UI から逆方向（Explained → Raw）に必ず辿れる。
 
 - IR が大きくなる（ただし lazy で manifest は小さい）
 - 説明文の品質が UX を左右する。explanation 辞書は早期に整備する
+
+---
+
+## ADR-008: Parser core を transport-neutral な src/core/ に分離
+Status: Accepted
+Date: 2026-05-12
+
+### Context
+
+Phase 0 では `ParserState` を `src/worker/handlers.ts` に置いていた。
+UI 側の `InProcessParserService` がそこから直接 import していたため、UI ↔
+worker 境界が論理的に曖昧で、将来 transport(remote worker, HTTP backend,
+SSR fallback) を増やす際に解析ロジックが Worker 専用ディレクトリに残り続け、
+新しい adapter ごとに「Worker から拝借する」形になるリスクがあった (Codex
+の Unit 1 設計レビューで指摘済み)。
+
+### Decision
+
+PDF 解析の中核ロジック (旧 `ParserState`) を `src/core/parser-session.ts`
+に分離し、クラス名を `ParserSession` にリネームする。
+`src/worker/index.ts` はこれを wrap する薄い transport adapter にする。
+`LruCache` も `src/core/lru-cache.ts` に移動する。
+
+### Consequences
+
+- `src/core/` は transport-neutral: DOM / Worker globals は触らない
+- 新しい adapter (remote worker / HTTP) を足す時、`core` の API だけに依存できる
+- UI から worker/ ディレクトリへの import が消え、レイヤ違反が型レベルでなくなる
+- 既存のテストはディレクトリだけ追従 (`tests/unit/core/`)

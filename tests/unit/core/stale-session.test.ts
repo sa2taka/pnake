@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ParserState, StaleSessionError } from "../../../src/worker/handlers";
+import { ParserSession, StaleSessionError } from "../../../src/core/parser-session";
 import { toBytes } from "../../../src/worker/pdf/io/byte-reader";
 
 function buildPdf(label: string): ArrayBuffer {
@@ -26,9 +26,9 @@ function buildPdf(label: string): ArrayBuffer {
   return toBytes(header + objects.join("") + xref + tail).slice().buffer;
 }
 
-describe("ParserState — stale session handling", () => {
+describe("ParserSession — stale session handling", () => {
   it("an older getPageOperations is rejected once a newer load arrives", async () => {
-    const state = new ParserState();
+    const state = new ParserSession();
     await state.load(buildPdf("AAAA"));
 
     // Start an async getPageOperations but do not await yet.
@@ -43,7 +43,7 @@ describe("ParserState — stale session handling", () => {
   });
 
   it("a getStream interleaved with a new load is rejected", async () => {
-    const state = new ParserState();
+    const state = new ParserSession();
     await state.load(buildPdf("CCC"));
     const pendingStream = state.getStream("obj:4:0", "decoded").catch((err) => err);
     await state.load(buildPdf("DD"));
@@ -52,7 +52,7 @@ describe("ParserState — stale session handling", () => {
   });
 
   it("two concurrent loads — only the latest survives", async () => {
-    const state = new ParserState();
+    const state = new ParserSession();
     const first = state.load(buildPdf("EE"));
     const second = state.load(buildPdf("FFFF"));
     const [a, b] = await Promise.allSettled([first, second]);

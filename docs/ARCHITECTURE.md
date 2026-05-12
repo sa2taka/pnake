@@ -96,20 +96,23 @@ src/
       BottomDrawer/
     overlay/             # SVG overlay generator (pure function: IR → SVG)
     state/               # selection / view-mode (no logic)
+    services/            # ParserService abstraction (Worker / InProcess)
     workerClient.ts      # Worker への型付き facade
 
-  worker/                # parser-worker entry
-    index.ts             # message dispatcher
+  worker/                # transport adapter for the parser worker
+    index.ts             # message dispatcher (thin)
     pdf/
-      tokenize/          # 低レベル lexer
-      structure/         # xref / trailer / incremental
-      objects/           # indirect object graph
-      streams/           # filter decoders (lazy)
-      content/           # content stream parser + GS simulator
-      resources/         # font / xobject / extgstate resolvers
-      explanation/       # 説明文辞書
-      warnings/          # 警告ストリーム
-    ir/                  # IR 型と builder (DATA_MODEL.md と同期)
+      io/                # ByteReader
+      lex/               # PDF tokenizer + lookahead stream
+      parse/             # value parser, indirect object reader
+      structure/         # xref / trailer / manifest / struct-tree / recovery
+      streams/           # filter decoders (FlateDecode + predictors etc.)
+      content/           # content stream parser, GS simulator, visual elements
+      resources/         # font / xobject / extgstate / ToUnicode CMap
+
+  core/                  # transport-neutral domain logic
+    parser-session.ts    # PDF parsing session (shared by Worker / InProcess)
+    lru-cache.ts         # decoded-stream cache
 
   shared/                # main / worker 共有
     protocol.ts          # メッセージ型
@@ -119,7 +122,8 @@ src/
   pdfjs/                 # PDF.js wrapper（render 専用）
 ```
 
-`ui/` と `worker/` は **互いに import しない**。`shared/` 経由のみ。
+`ui/` は `worker/` を直接 import せず、`core/` か `shared/` を経由する。
+`worker/index.ts` も `core/parser-session.ts` を呼ぶ薄い transport adapter。
 
 ## 解析パイプライン
 
