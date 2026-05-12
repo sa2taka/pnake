@@ -2,14 +2,18 @@ import { useEffect, useRef, useState } from "react";
 import { PanelHeader } from "../PanelHeader";
 import { useApp } from "../../state/AppContext";
 import { renderPage } from "../../../pdfjs/renderer";
+import { RenderOverlay } from "../../overlay/RenderOverlay";
+import type { PageOperationsResult } from "../../../shared/protocol";
 import "./RenderPanel.css";
 
 export function RenderPanel(): JSX.Element {
-  const { state } = useApp();
+  const { state, parser } = useApp();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<string>("");
-  const [pageSize, setPageSize] = useState<{ w: number; h: number } | null>(null);
+  const [pageSize, setPageSize] = useState<{ width: number; height: number } | null>(null);
+  const [pageOps, setPageOps] = useState<PageOperationsResult | null>(null);
 
+  // Render the page on canvas whenever the file or page changes.
   useEffect(() => {
     const bytes = state.fileBytes;
     if (!bytes || !canvasRef.current) {
@@ -28,7 +32,7 @@ export function RenderPanel(): JSX.Element {
       .then((info) => {
         if (cancelled) return;
         setStatus("");
-        setPageSize({ w: info.width, h: info.height });
+        setPageSize({ width: info.width, height: info.height });
       })
       .catch((err) => {
         if (cancelled) return;
@@ -38,6 +42,27 @@ export function RenderPanel(): JSX.Element {
       cancelled = true;
     };
   }, [state.fileBytes, state.currentPage]);
+
+  // Fetch the page operations + visual elements separately so the
+  // overlay can render the moment the canvas is ready.
+  useEffect(() => {
+    if (state.status !== "loaded") return;
+    let cancelled = false;
+    setPageOps(null);
+    parser
+      .getPageOperations(state.currentPage)
+      .then((r) => {
+        if (!cancelled) setPageOps(r);
+      })
+      .catch(() => {
+        if (!cancelled) setPageOps(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.status, state.currentPage, parser]);
+
+  const currentPage = state.analysis?.pages[state.currentPage - 1];
 
   return (
     <div className="renderpanel" data-testid="render-panel">
@@ -58,13 +83,27 @@ export function RenderPanel(): JSX.Element {
             {status}
           </p>
         )}
-        <canvas
-          ref={canvasRef}
-          data-testid="render-canvas"
-          aria-label={
-            pageSize ? `Page ${state.currentPage}, ${pageSize.w}×${pageSize.h}` : "PDF page"
-          }
-        />
+        <div className="renderpanel-stack">
+          <canvas
+            ref={canvasRef}
+            data-testid="render-canvas"
+            aria-label={
+              pageSize ? `Page ${state.currentPage}, ${pageSize.width}×${pageSize.height}` : "PDF page"
+            }
+          />
+          {currentPage && pageSize && pageOps && (
+            <RenderOverlay
+              page={currentPage}
+              elements={pageOps.visualElements}
+              pixelSize={pageSize}
+              selectedOperationId={
+                state.selectedNodeId?.startsWith("page:")
+                  ? state.selectedNodeId
+                  : undefined
+              }
+            />
+          )}
+        </div>
       </div>
     </div>
   );

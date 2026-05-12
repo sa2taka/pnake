@@ -26,9 +26,15 @@
   position: relative;
 }
 
-.renderpanel-canvas-wrap canvas {
+.renderpanel-stack {
+  position: relative;
+  display: inline-block;
   background: white;
   box-shadow: 0 0 0 1px var(--hairline-strong);
+}
+
+.renderpanel-stack canvas {
+  display: block;
   max-width: 100%;
   height: auto;
 }

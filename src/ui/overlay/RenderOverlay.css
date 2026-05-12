@@ -1,0 +1,44 @@
+.render-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none; /* re-enable on individual rects */
+}
+
+.render-overlay rect {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 1;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.render-overlay rect[data-kind="text-run"] {
+  fill: rgba(68, 147, 248, 0.05);
+}
+
+.render-overlay rect[data-kind="image"] {
+  stroke: rgba(126, 231, 135, 0.6);
+}
+
+.render-overlay rect[data-kind="form-xobject"] {
+  stroke: rgba(192, 138, 249, 0.55);
+  stroke-dasharray: 4 3;
+}
+
+.render-overlay rect:hover {
+  fill: rgba(68, 147, 248, 0.18);
+  stroke: var(--accent);
+}
+
+.render-overlay rect[data-selected="true"] {
+  fill: rgba(68, 147, 248, 0.32);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.render-overlay rect:focus {
+  outline: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
