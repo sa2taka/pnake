@@ -21,6 +21,7 @@ import { ByteReader, asciiString, isWhitespace, toBytes } from "../io/byte-reade
 import { Lexer } from "../lex/lexer";
 import { TokenStream } from "../lex/token-stream";
 import { ParseError, ValueParser } from "../parse/value-parser";
+import { categorizeOperator } from "./categories";
 
 const KW_BI = "BI";
 const KW_ID = "ID";
@@ -69,7 +70,7 @@ export function parseContentStream(
         sequence: seq++,
         operator: peek.value,
         operands: stack,
-        category: "unknown",
+        category: categorizeOperator(peek.value),
         decodedRange: { start: opStart, end: peek.range.end },
       });
       stack = [];
@@ -154,7 +155,7 @@ function consumeInlineImage(
     sequence,
     operator: "BI/EI",
     operands: [],
-    category: "unknown",
+    category: "image-inline",
     decodedRange: { start: biStart, end: reader.pos },
   };
 }
