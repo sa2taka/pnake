@@ -252,6 +252,37 @@ function collectXObjects(
     if (cs) resource.colorSpace = cs;
     const bpc = expectInt(d.BitsPerComponent);
     if (bpc != null) resource.bitsPerComponent = bpc;
+    // Form XObjects carry their own coordinate system (/BBox + /Matrix);
+    // pull them out here so the visual-element builder can position the
+    // form correctly rather than treating it as a unit rectangle.
+    if (subtype === "Form") {
+      const bbox = expectArray(d.BBox);
+      if (bbox && bbox.length >= 4) {
+        const [llx, lly, urx, ury] = bbox.map((v) =>
+          v.kind === "int" ? v.value : v.kind === "real" ? v.value : 0,
+        );
+        resource.formBBox = {
+          x: llx ?? 0,
+          y: lly ?? 0,
+          w: (urx ?? 0) - (llx ?? 0),
+          h: (ury ?? 0) - (lly ?? 0),
+        };
+      }
+      const matrix = expectArray(d.Matrix);
+      if (matrix && matrix.length >= 6) {
+        const nums = matrix.map((v) =>
+          v.kind === "int" ? v.value : v.kind === "real" ? v.value : 0,
+        );
+        resource.formMatrix = [
+          nums[0] ?? 1,
+          nums[1] ?? 0,
+          nums[2] ?? 0,
+          nums[3] ?? 1,
+          nums[4] ?? 0,
+          nums[5] ?? 0,
+        ];
+      }
+    }
     result[name] = resource;
   }
   return result;

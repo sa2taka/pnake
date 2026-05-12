@@ -61,7 +61,10 @@ export function buildVisualElements(
       case '"': {
         const raw = readString(op.operands[op.operator === '"' ? 2 : 0]);
         const preview = previewText(raw, ctx.stateBefore.text.fontKey, input.fontCMaps);
-        const bbox = textBBox(ctx.stateBefore, raw?.length ?? 1);
+        // Prefer the decoded codepoint count over raw byte length — multibyte
+        // (CID) fonts otherwise inflate bbox widths by ~2x.
+        const glyphCount = preview?.length ?? raw?.length ?? 1;
+        const bbox = textBBox(ctx.stateBefore, glyphCount);
         if (bbox) {
           elements.push({
             id: `page:${input.pageNumber}:vis:text:${textRunIndex++}`,
@@ -78,14 +81,13 @@ export function buildVisualElements(
         const arr = op.operands[0];
         if (!arr || arr.kind !== "array") break;
         const strings: string[] = [];
-        let chars = 0;
         for (const item of arr.items) {
           if (item.kind === "string") {
             strings.push(previewText(item.raw, ctx.stateBefore.text.fontKey, input.fontCMaps) ?? "");
-            chars += item.raw.length;
           }
         }
-        const bbox = textBBox(ctx.stateBefore, chars || strings.join("").length);
+        const combined = strings.join("");
+        const bbox = textBBox(ctx.stateBefore, combined.length || 1);
         if (bbox) {
           elements.push({
             id: `page:${input.pageNumber}:vis:text:${textRunIndex++}`,
@@ -93,7 +95,7 @@ export function buildVisualElements(
             bbox,
             zIndex: z++,
             sourceOperationIds: [op.id],
-            preview: strings.join(""),
+            preview: combined,
           });
         }
         break;
@@ -112,7 +114,17 @@ export function buildVisualElements(
           });
           break;
         }
-        const bbox = transformRect(ctx.stateBefore.ctm, { x: 0, y: 0, w: 1, h: 1 });
+        let bbox: PdfRect;
+        if (xo.subtype === "Form" && xo.formBBox) {
+          // Form XObjects render their /BBox through their own /Matrix and
+          // then through the current CTM (ISO 32000-2 §8.10).
+          const formMatrix = xo.formMatrix ?? [1, 0, 0, 1, 0, 0];
+          const combined = multiply(formMatrix, ctx.stateBefore.ctm);
+          bbox = transformRect(combined, xo.formBBox);
+        } else {
+          // Image XObjects are 1×1 unit square in image space; CTM scales it.
+          bbox = transformRect(ctx.stateBefore.ctm, { x: 0, y: 0, w: 1, h: 1 });
+        }
         elements.push({
           id:
             xo.subtype === "Form"

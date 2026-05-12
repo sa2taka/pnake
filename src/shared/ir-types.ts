@@ -243,6 +243,10 @@ export interface PdfXObjectResource {
   colorSpace?: string;
   bitsPerComponent?: number;
   filters: PdfFilter[];
+  /** /BBox for Form XObjects (ISO 32000-2 §8.10); undefined on Images. */
+  formBBox?: PdfRect;
+  /** /Matrix for Form XObjects; identity when absent. */
+  formMatrix?: Matrix;
 }
 
 export interface PdfResolvedResources {
