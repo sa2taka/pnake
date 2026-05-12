@@ -65,7 +65,15 @@ export function parseContentStream(
       tokens.consume();
       const opStart = stack.length > 0 ? stackStart : peek.range.start;
       if (peek.value === KW_BI) {
-        const op = consumeInlineImage(reader, tokens, lexer, opStart, pageNumber, seq);
+        const op = consumeInlineImage(
+          reader,
+          tokens,
+          lexer,
+          opStart,
+          pageNumber,
+          seq,
+          warnings,
+        );
         ops.push(op);
         seq++;
         stack = [];
@@ -129,6 +137,7 @@ function consumeInlineImage(
   biStart: number,
   pageNumber: number,
   sequence: number,
+  warnings: PdfWarning[],
 ): PdfOperation {
   // Consume name/value pairs (operands stay on the stack but we don't
   // care — we'll fold them into the synthetic op) until we hit the
@@ -144,35 +153,45 @@ function consumeInlineImage(
   }
 
   // Image data starts after a single whitespace following ID. Scan
-  // forward for the next whitespace-bounded "EI" keyword.
+  // forward for the next whitespace-bounded "EI" keyword, then verify
+  // the bytes after it parse as a plausible operator boundary — this
+  // pushes back on JPEG / Flate payloads that contain the literal
+  // "EI" surrounded by whitespace-shaped bytes.
   tokens.reset();
-  // The lexer may have buffered past the "ID" — restart scanning from
-  // wherever the underlying reader left off after a manual reset.
-  // Skip the mandatory single whitespace per spec, but tolerate any amount.
   reader.skipWhile(isWhitespace);
+  const dataStart = reader.pos;
   let eiOffset = -1;
-  let scanFrom = reader.pos;
+  let scanFrom = dataStart;
   while (true) {
     const candidate = reader.indexOf(EI_PATTERN, scanFrom);
     if (candidate === -1) break;
-    // EI must be preceded by whitespace and followed by whitespace.
-    const before = reader.bytes[candidate - 1];
-    const after = reader.bytes[candidate + 2];
-    const beforeOk = before === undefined || isWhitespace(before);
-    const afterOk = after === undefined || isWhitespace(after);
-    if (beforeOk && afterOk) {
+    if (looksLikeEiBoundary(reader, candidate)) {
       eiOffset = candidate;
       break;
     }
     scanFrom = candidate + 1;
   }
   if (eiOffset === -1) {
-    // Couldn't find EI; give up and treat the rest as image data.
-    reader.seek(reader.end);
-  } else {
-    reader.seek(eiOffset + 2);
+    // Could not find a plausible EI. Don't swallow the rest of the page;
+    // back up to the start of the image data so the surrounding loop can
+    // re-tokenize it (it may still produce garbage, but that's recoverable).
+    warnings.push({
+      id: `warn:inline-image-ei:${pageNumber}:${biStart}`,
+      severity: "warn",
+      category: "structure",
+      message: `Inline image starting at ${biStart} has no parseable EI terminator`,
+    });
+    reader.seek(dataStart);
+    return {
+      id: operationId(pageNumber, sequence),
+      sequence,
+      operator: "BI/EI",
+      operands: [],
+      category: "image-inline",
+      decodedRange: { start: biStart, end: dataStart },
+    };
   }
-
+  reader.seek(eiOffset + EI_PATTERN.length);
   return {
     id: operationId(pageNumber, sequence),
     sequence,
@@ -181,6 +200,47 @@ function consumeInlineImage(
     category: "image-inline",
     decodedRange: { start: biStart, end: reader.pos },
   };
+}
+
+/**
+ * Strict boundary check around an `EI` candidate. The byte before must be
+ * whitespace (preferably EOL); the bytes after must look like a fresh
+ * operator boundary — whitespace + another keyword / operand start, or EOF.
+ * This rejects the common false positives where binary stream data happens
+ * to contain `\x20EI\x20`.
+ */
+function looksLikeEiBoundary(reader: ByteReader, idx: number): boolean {
+  const before = reader.bytes[idx - 1];
+  const after = reader.bytes[idx + EI_PATTERN.length];
+  if (before !== undefined && !isWhitespace(before)) return false;
+  if (after === undefined) return true; // EOF after EI is fine
+  if (!isWhitespace(after)) return false;
+  // Peek a little further: we want the next non-whitespace byte to look
+  // like the start of an operator (letter / digit / sign / paren / slash /
+  // bracket / less-than) rather than another random binary byte.
+  for (let i = idx + EI_PATTERN.length; i < reader.bytes.length && i < idx + 16; i++) {
+    const b = reader.bytes[i];
+    if (b === undefined) return true;
+    if (isWhitespace(b)) continue;
+    return looksLikeOperatorStart(b);
+  }
+  return true;
+}
+
+function looksLikeOperatorStart(b: number): boolean {
+  if (b >= 0x41 && b <= 0x5a) return true; // A-Z
+  if (b >= 0x61 && b <= 0x7a) return true; // a-z
+  if (b >= 0x30 && b <= 0x39) return true; // 0-9
+  return (
+    b === 0x2b || // +
+    b === 0x2d || // -
+    b === 0x2e || // .
+    b === 0x2f || // /
+    b === 0x28 || // (
+    b === 0x3c || // <
+    b === 0x5b || // [
+    b === 0x25 // %
+  );
 }
 
 // Re-export ascii helper so tests can reuse it.
