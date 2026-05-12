@@ -65,8 +65,9 @@ describe("buildManifest (classic xref)", () => {
     expect(analysis.objectsIndex["obj:3:0"]!.type).toBe("page");
   });
 
-  it("returns warnings on a truncated input", async () => {
+  it("recovers via scan when truncated past the xref but still surfaces warnings", async () => {
     const truncated = buildClassicPdf().subarray(0, 50);
-    await expect(buildManifest(truncated)).rejects.toThrow(/startxref/);
+    const analysis = await buildManifest(truncated);
+    expect(analysis.warnings.some((w) => w.id === "warn:startxref-missing")).toBe(true);
   });
 });

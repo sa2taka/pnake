@@ -46,6 +46,7 @@ import {
 } from "./xref-table";
 import { parseXrefStream } from "./xref-stream";
 import { parseObjectStream } from "./object-stream";
+import { scanIndirectObjectHeaders } from "./scan-recovery";
 
 const HEADER_SIG = toBytes("%PDF-");
 
@@ -71,14 +72,31 @@ export async function parsePdf(bytes: Uint8Array): Promise<ParseResult> {
 
   // 3. startxref location
   const startxrefOffset = findStartxref(reader);
-  if (startxrefOffset == null) {
-    throw new Error("Could not locate startxref — file is likely not a PDF or is severely truncated");
-  }
 
   // 4. Walk xref chain
   const bodies: PdfBody[] = [];
   const xrefEntries: Map<number, PdfXrefEntry> = new Map();
-  await walkXrefChain(reader, startxrefOffset, bodies, xrefEntries, warnings);
+  if (startxrefOffset == null) {
+    warnings.push({
+      id: "warn:startxref-missing",
+      severity: "warn",
+      category: "structure",
+      message:
+        "Could not locate startxref — recovering by scanning for indirect object headers",
+    });
+    fillFromScan(reader, xrefEntries);
+  } else {
+    await walkXrefChain(reader, startxrefOffset, bodies, xrefEntries, warnings);
+    if (xrefEntries.size === 0) {
+      warnings.push({
+        id: "warn:xref-empty",
+        severity: "warn",
+        category: "xref",
+        message: "xref chain produced no usable entries; falling back to a linear scan",
+      });
+      fillFromScan(reader, xrefEntries);
+    }
+  }
 
   // 5. Read all in-use objects + decompress object streams
   const objectsByOffset = await loadObjects(reader, xrefEntries, warnings);
@@ -163,6 +181,18 @@ function readHeader(
 // =============================================================================
 // Xref chain walking
 // =============================================================================
+
+function fillFromScan(
+  reader: ByteReader,
+  entries: Map<number, PdfXrefEntry>,
+): void {
+  const scanned = scanIndirectObjectHeaders(reader);
+  for (const entry of scanned) {
+    if (!entries.has(entry.objectNumber)) {
+      entries.set(entry.objectNumber, entry);
+    }
+  }
+}
 
 async function walkXrefChain(
   reader: ByteReader,

@@ -99,8 +99,17 @@ describe("recovery: corrupted input still produces a manifest", () => {
     expect(tokenizeAll(rand).at(-1)?.kind).toBe("eof");
   });
 
-  it("aborts cleanly when startxref is missing", async () => {
-    await expect(buildManifest(toBytes("%PDF-1.7\nnot a pdf"))).rejects.toThrow(/startxref/);
+  it("recovers via header scan when startxref is missing", async () => {
+    // No xref section at all, but objects exist — the scan should find them.
+    const objects = [
+      "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+      "2 0 obj\n<< /Type /Pages /Count 0 /Kids [] >>\nendobj\n",
+    ];
+    const bytes = toBytes("%PDF-1.7\n" + objects.join(""));
+    const analysis = await buildManifest(bytes);
+    expect(analysis.warnings.some((w) => w.id === "warn:startxref-missing")).toBe(true);
+    expect(Object.keys(analysis.objectsIndex)).toContain("obj:1:0");
+    expect(Object.keys(analysis.objectsIndex)).toContain("obj:2:0");
   });
 
   it("lexer makes progress on every call regardless of input", () => {
