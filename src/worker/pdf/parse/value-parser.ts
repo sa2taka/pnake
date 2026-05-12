@@ -20,8 +20,29 @@ export class ParseError extends Error {
   }
 }
 
+/**
+ * Grammar context for ValueParser.
+ *
+ * `object` (default): PDF object syntax — bare `N G R` triples are
+ * interpreted as indirect references (ISO 32000-2 §7.3.10).
+ *
+ * `content`: PDF content stream syntax — `R` is not a reserved word,
+ * so we must NOT collapse `N G R` into a reference. (Real content
+ * streams never emit refs; collapsing them silently mangles legal
+ * input, e.g. an integer-integer-keyword sequence in operands.)
+ */
+export type ValueParserMode = "object" | "content";
+
+export interface ValueParserOptions {
+  mode?: ValueParserMode;
+}
+
 export class ValueParser {
-  constructor(public tokens: TokenStream) {}
+  private readonly allowIndirectRef: boolean;
+
+  constructor(public tokens: TokenStream, options: ValueParserOptions = {}) {
+    this.allowIndirectRef = (options.mode ?? "object") === "object";
+  }
 
   parseValue(): PdfValue {
     const tok = this.tokens.peek();
@@ -48,22 +69,24 @@ export class ValueParser {
         this.tokens.consume();
         return { kind: "real", value: tok.value };
       case "integer": {
-        // Possible "N G R" reference. 3-token lookahead.
-        const a = this.tokens.peek();
-        const b = this.tokens.peek(1);
-        const c = this.tokens.peek(2);
-        if (
-          a.kind === "integer" &&
-          b.kind === "integer" &&
-          c.kind === "keyword" &&
-          c.value === "R" &&
-          a.value >= 0 &&
-          b.value >= 0
-        ) {
-          this.tokens.consume();
-          this.tokens.consume();
-          this.tokens.consume();
-          return { kind: "ref", target: objectId(a.value, b.value) };
+        if (this.allowIndirectRef) {
+          // Possible "N G R" reference. 3-token lookahead.
+          const a = this.tokens.peek();
+          const b = this.tokens.peek(1);
+          const c = this.tokens.peek(2);
+          if (
+            a.kind === "integer" &&
+            b.kind === "integer" &&
+            c.kind === "keyword" &&
+            c.value === "R" &&
+            a.value >= 0 &&
+            b.value >= 0
+          ) {
+            this.tokens.consume();
+            this.tokens.consume();
+            this.tokens.consume();
+            return { kind: "ref", target: objectId(a.value, b.value) };
+          }
         }
         this.tokens.consume();
         return { kind: "int", value: tok.value };

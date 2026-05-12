@@ -40,7 +40,11 @@ export function parseContentStream(
   const reader = new ByteReader(decoded);
   const lexer = new Lexer(reader);
   const tokens = new TokenStream(lexer);
-  const parser = new ValueParser(tokens);
+  // `mode: "content"` disables the indirect-reference lookahead.
+  // Content streams never emit refs (R is just any other operator);
+  // collapsing "1 0 R" inside an operand triple would silently corrupt
+  // legal integer-integer-keyword sequences.
+  const parser = new ValueParser(tokens, { mode: "content" });
   const ops: PdfOperation[] = [];
   const warnings: PdfWarning[] = [];
 

@@ -46,6 +46,15 @@ describe("ValueParser", () => {
     expect(parser.parseValue()).toEqual({ kind: "int", value: 0 });
   });
 
+  it("content mode does NOT collapse `12 0 R` into a reference", () => {
+    // R is just an arbitrary keyword in content streams; refs are not legal.
+    const reader = new ByteReader(toBytes("12 0 R"));
+    const tokens = new TokenStream(new Lexer(reader));
+    const parser = new ValueParser(tokens, { mode: "content" });
+    expect(parser.parseValue()).toEqual({ kind: "int", value: 12 });
+    expect(parser.parseValue()).toEqual({ kind: "int", value: 0 });
+  });
+
   it("parses arrays and dicts recursively", () => {
     const v = parse("<< /Length 100 /Filter /FlateDecode /IDs [1 2 3] >>");
     expect(v.kind).toBe("dict");
