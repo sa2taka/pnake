@@ -230,6 +230,33 @@ async function walkXrefChain(
         }
       }
       warnings.push(...parsed.warnings);
+
+      // Hybrid-reference files: the classic trailer may also point to a
+      // supplementary cross-reference stream via /XRefStm. Per ISO 32000-2
+      // §7.5.8.4, that stream provides additional entries for the same body
+      // (typically PDF 1.5+ compressed objects added to a 1.4 base). Visit
+      // it before /Prev so its entries take effect at the same revision.
+      const xrefStmOffset = readXRefStm(parsed.trailer.dict);
+      if (xrefStmOffset != null && !visited.has(xrefStmOffset)) {
+        visited.add(xrefStmOffset);
+        try {
+          const supplementary = await readXrefAt(reader, xrefStmOffset);
+          for (const entry of supplementary.xref.entries) {
+            if (!entries.has(entry.objectNumber)) {
+              entries.set(entry.objectNumber, entry);
+            }
+          }
+          warnings.push(...supplementary.warnings);
+        } catch (err) {
+          warnings.push({
+            id: `warn:xrefstm-failed:${xrefStmOffset.toString(16)}`,
+            severity: "warn",
+            category: "xref",
+            message: `Failed to parse /XRefStm at offset ${xrefStmOffset}: ${(err as Error).message}`,
+          });
+        }
+      }
+
       offset = readPrev(parsed.trailer.dict);
     } catch (err) {
       warnings.push({
@@ -263,6 +290,10 @@ async function readXrefAt(reader: ByteReader, offset: number): Promise<XrefParse
 
 function readPrev(dict: PdfDict): number | null {
   return expectInt(dictGet({ kind: "dict", entries: dict }, "Prev")) ?? null;
+}
+
+function readXRefStm(dict: PdfDict): number | null {
+  return expectInt(dictGet({ kind: "dict", entries: dict }, "XRefStm")) ?? null;
 }
 
 // =============================================================================
