@@ -205,6 +205,21 @@ function firstSelectableId(analysis: PdfAnalysis): string | undefined {
 // =============================================================================
 // Context
 // =============================================================================
+//
+// We split the runtime values across three separate contexts so consumers
+// rerender only on the cadence they actually care about.
+//
+//   - StateContext: changes on every reducer dispatch (page changes,
+//     selections, load progress). Consumers that read state belong here.
+//   - DispatchContext: stable reference for the lifetime of the provider.
+//     Components that only dispatch (Toolbar, buttons) do not need to
+//     rerender on state changes.
+//   - ParserContext: stable across all state changes; only flips when
+//     the underlying ParserService is created / disposed.
+//
+// `useApp()` is preserved as a convenience hook that joins all three for
+// callers that genuinely need everything. Prefer `useAppState`,
+// `useAppDispatch`, `useParser` when only one slice is needed.
 
 interface AppContextValue {
   state: AppState;
@@ -212,7 +227,9 @@ interface AppContextValue {
   parser: ParserService;
 }
 
-const AppContext = createContext<AppContextValue | null>(null);
+const StateContext = createContext<AppState | null>(null);
+const DispatchContext = createContext<React.Dispatch<Action> | null>(null);
+const ParserContext = createContext<ParserService | null>(null);
 
 interface AppProviderProps {
   children: ReactNode;
@@ -297,12 +314,42 @@ export function AppProvider({ children, parserService }: AppProviderProps): JSX.
     return <div data-testid="app-bootstrapping" />;
   }
 
-  const value: AppContextValue = { state, dispatch, parser };
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <ParserContext.Provider value={parser}>
+      <DispatchContext.Provider value={dispatch}>
+        <StateContext.Provider value={state}>{children}</StateContext.Provider>
+      </DispatchContext.Provider>
+    </ParserContext.Provider>
+  );
 }
 
+export function useAppState(): AppState {
+  const state = useContext(StateContext);
+  if (!state) throw new Error("useAppState must be used inside <AppProvider>");
+  return state;
+}
+
+export function useAppDispatch(): React.Dispatch<Action> {
+  const dispatch = useContext(DispatchContext);
+  if (!dispatch) throw new Error("useAppDispatch must be used inside <AppProvider>");
+  return dispatch;
+}
+
+export function useParser(): ParserService {
+  const parser = useContext(ParserContext);
+  if (!parser) throw new Error("useParser must be used inside <AppProvider>");
+  return parser;
+}
+
+/**
+ * Convenience hook joining state + dispatch + parser. Use when a component
+ * legitimately needs all three; otherwise prefer the slice-specific hooks
+ * above so you only rerender on the slice that matters.
+ */
 export function useApp(): AppContextValue {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error("useApp must be used inside <AppProvider>");
-  return ctx;
+  return {
+    state: useAppState(),
+    dispatch: useAppDispatch(),
+    parser: useParser(),
+  };
 }
