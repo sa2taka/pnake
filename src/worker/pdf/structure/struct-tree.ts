@@ -130,7 +130,12 @@ function makeChild(
     const dict = value.entries;
     const type = expectName(dict.Type);
     if (type === "MCR") {
-      const mcid = expectInt(dict.MCID) ?? 0;
+      // /MCID is required for a valid MCR. Defaulting to 0 used to merge
+      // broken entries with the first marked-content op on the page — a
+      // silent misattribution. We drop the child instead and let the caller
+      // (or upstream warnings) surface it as malformed.
+      const mcid = expectInt(dict.MCID);
+      if (mcid == null) return undefined;
       const page = expectRef(dict.Pg);
       return page ? { kind: "mcid", mcid, page } : { kind: "mcid", mcid };
     }
