@@ -9,9 +9,9 @@ import {
   createContext,
   useContext,
   useEffect,
-  useMemo,
   useReducer,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
 import type { PdfAnalysis, PdfStructTree } from "../../shared/ir-types";
@@ -169,26 +169,38 @@ interface AppProviderProps {
   parserService?: ParserService;
 }
 
-export function AppProvider({ children, parserService }: AppProviderProps): JSX.Element {
-  const [state, dispatch] = useReducer(appReducer, initialState);
-  const ownedRef = useRef<ParserService | null>(null);
-
-  const parser = useMemo(() => {
-    if (parserService) {
-      ownedRef.current = null; // caller owns disposal
-      return parserService;
-    }
-    const created = createDefaultParserService();
-    ownedRef.current = created;
-    return created;
-  }, [parserService]);
+/**
+ * Owns the ParserService lifecycle.
+ *
+ * When the caller passes a parserService prop we treat that instance as
+ * externally owned and never dispose it. When the prop is undefined we
+ * create our own in a commit-phase effect (NOT in render or useMemo) and
+ * dispose it on unmount or when the prop later changes. This keeps Worker
+ * spawn / dispose tied to React's commit cycle so StrictMode's
+ * development-time double-mount and prop changes can't leak Workers.
+ */
+function useParserService(externalService: ParserService | undefined): ParserService | null {
+  const [internal, setInternal] = useState<ParserService | null>(null);
 
   useEffect(() => {
+    if (externalService) {
+      // Caller-supplied service: don't create / dispose anything here.
+      setInternal(null);
+      return;
+    }
+    const created = createDefaultParserService();
+    setInternal(created);
     return () => {
-      ownedRef.current?.dispose();
-      ownedRef.current = null;
+      created.dispose();
     };
-  }, []);
+  }, [externalService]);
+
+  return externalService ?? internal;
+}
+
+export function AppProvider({ children, parserService }: AppProviderProps): JSX.Element {
+  const [state, dispatch] = useReducer(appReducer, initialState);
+  const parser = useParserService(parserService);
 
   // Fetch operations + visual elements whenever the current page changes.
   //
@@ -198,6 +210,7 @@ export function AppProvider({ children, parserService }: AppProviderProps): JSX.
   // Instead, an inFlight ref tracks which page is being fetched.
   const inFlightRef = useRef<number | null>(null);
   useEffect(() => {
+    if (!parser) return;
     if (state.status !== "loaded") return;
     if (!state.analysis?.pages[state.currentPage - 1]) return;
     if (state.pageOperations?.pageNumber === state.currentPage) return;
@@ -223,11 +236,15 @@ export function AppProvider({ children, parserService }: AppProviderProps): JSX.
       });
   }, [state.status, state.currentPage, state.analysis, state.pageOperations, parser]);
 
-  const value = useMemo<AppContextValue>(
-    () => ({ state, dispatch, parser }),
-    [state, parser],
-  );
+  // Don't render children until the parser is available — the worker is
+  // created in a commit-phase effect, so the very first render before the
+  // effect commits has parser === null. Tests that supply parserService
+  // see a non-null parser immediately and skip this branch.
+  if (!parser) {
+    return <div data-testid="app-bootstrapping" />;
+  }
 
+  const value: AppContextValue = { state, dispatch, parser };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
