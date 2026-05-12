@@ -42,13 +42,15 @@ describe("Pages tree with attribute inheritance", () => {
     expect(second?.rotation).toBe(0);
   });
 
-  it("inherits Resources reference when the page omits it", async () => {
-    // Page 4 should not have resourceRef (because the inherited Resources is
-    // a direct object, not a ref). Page 5 omits it as well — but neither has
-    // an indirect Resources, so resourceRef stays undefined. The inherited
-    // dict still applies semantically; verifying behaviour is in Phase 3 once
-    // resource resolution lands. For now confirm we don't crash.
+  it("inherits a direct-dict /Resources through resourceDict", async () => {
+    // The root Pages declares /Resources as an inline dict. Both leaf pages
+    // omit /Resources, so the inline dict must propagate via resourceDict
+    // (resourceRef stays undefined because the ancestor used a direct dict).
     const analysis = await buildManifest(buildInheritingPagesPdf());
     expect(analysis.pages.every((p) => p.resourceRef === undefined)).toBe(true);
+    expect(analysis.pages.every((p) => p.resourceDict !== undefined)).toBe(true);
+    // The inherited dict carries the /ProcSet declared on the ancestor.
+    const dict = analysis.pages[0]!.resourceDict!;
+    expect(dict.ProcSet).toMatchObject({ kind: "array" });
   });
 });

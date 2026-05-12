@@ -578,12 +578,17 @@ function enumeratePages(
  * Inheritable: MediaBox, CropBox, Resources, Rotate. Other box types
  * (BleedBox, TrimBox, ArtBox) default to CropBox / MediaBox per spec,
  * but only if not explicitly set, which we model below.
+ *
+ * /Resources can be either an indirect reference (resourceRef) or an
+ * inline dictionary (resourceDict). We track both so direct dicts on
+ * ancestor /Pages nodes propagate to descendant /Page leaves.
  */
 interface InheritedPageAttrs {
   mediaBox?: PdfPageSummary["boxes"]["mediaBox"];
   cropBox?: PdfPageSummary["boxes"]["mediaBox"];
   rotate?: number;
   resourceRef?: ObjectId;
+  resourceDict?: PdfDict;
 }
 
 function walkPages(
@@ -632,8 +637,17 @@ function mergeInherited(parent: InheritedPageAttrs, dict: PdfDict): InheritedPag
   if (cropBox) next.cropBox = cropBox;
   const rotate = expectInt(dict.Rotate);
   if (rotate != null) next.rotate = rotate;
-  const resRef = expectRef(dict.Resources);
-  if (resRef) next.resourceRef = resRef;
+  // /Resources can appear either indirectly (a ref to a separate object) or
+  // directly (an inline dict on this very node). When a child overrides we
+  // wipe both so the new form takes effect cleanly.
+  const resources = dict.Resources;
+  if (resources?.kind === "ref") {
+    next.resourceRef = resources.target;
+    delete next.resourceDict;
+  } else if (resources?.kind === "dict") {
+    next.resourceDict = resources.entries;
+    delete next.resourceRef;
+  }
   return next;
 }
 
@@ -662,8 +676,17 @@ function buildPageSummary(
   if (bleedBox) summary.boxes.bleedBox = bleedBox;
   if (trimBox) summary.boxes.trimBox = trimBox;
   if (artBox) summary.boxes.artBox = artBox;
-  const resRef = expectRef(dict.Resources) ?? inherited.resourceRef;
-  if (resRef) summary.resourceRef = resRef;
+  // Page-local /Resources wins over inherited values.
+  const localResources = dict.Resources;
+  if (localResources?.kind === "ref") {
+    summary.resourceRef = localResources.target;
+  } else if (localResources?.kind === "dict") {
+    summary.resourceDict = localResources.entries;
+  } else if (inherited.resourceRef) {
+    summary.resourceRef = inherited.resourceRef;
+  } else if (inherited.resourceDict) {
+    summary.resourceDict = inherited.resourceDict;
+  }
   return summary;
 }
 

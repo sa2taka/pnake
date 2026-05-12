@@ -208,7 +208,14 @@ export interface PdfPageSummary {
   boxes: PdfPageBoxes;
   rotation: 0 | 90 | 180 | 270;
   userUnit: number;
+  /** Indirect reference to a /Resources dict (page-local or inherited). */
   resourceRef?: ObjectId;
+  /**
+   * Inline /Resources dict carried directly on the page or inherited from
+   * an ancestor /Pages node. Either resourceRef or resourceDict (or both,
+   * when an ancestor inlined while a child overrode by ref) may be set.
+   */
+  resourceDict?: PdfDict;
   contentStreamRefs: ObjectId[];
   annotationRefs: ObjectId[];
 }

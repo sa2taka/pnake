@@ -28,16 +28,23 @@ import {
 
 export interface ResolveInput {
   pageNumber: number;
+  /** Page-local /Resources reference (preferred when present). */
   resourceRef?: ObjectId;
+  /** Page-local /Resources dictionary, inline. */
+  resourceDict?: PdfDict;
+  /** Fallback /Resources reference inherited from an ancestor /Pages. */
   inheritedResourceRef?: ObjectId;
+  /** Fallback inline /Resources dict inherited from an ancestor /Pages. */
+  inheritedResourceDict?: PdfDict;
   objects: Map<ObjectId, IndirectObject>;
 }
 
 export function resolveResources(input: ResolveInput): PdfResolvedResources {
-  const resourceDict = readResourceDict(
-    input.resourceRef ?? input.inheritedResourceRef,
-    input.objects,
-  );
+  const resourceDict =
+    input.resourceDict ??
+    readResourceDict(input.resourceRef, input.objects) ??
+    input.inheritedResourceDict ??
+    readResourceDict(input.inheritedResourceRef, input.objects);
 
   return {
     pageNumber: input.pageNumber,

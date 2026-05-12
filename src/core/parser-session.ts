@@ -207,11 +207,13 @@ export class ParserSession {
     const combined = concatBytes(allBytes);
     const { operations, warnings } = parseContentStream(combined, pageNumber);
 
-    // Resolve the page's resources (using inherited if needed — manifest already
-    // resolved page.resourceRef to either the page's own or an inherited ref).
+    // Resolve the page's resources. manifest.enumeratePages has already
+    // walked the /Pages inheritance chain and copied either resourceRef or
+    // resourceDict onto the summary, so we pass both through.
     const resources = resolveResources({
       pageNumber,
       resourceRef: page.resourceRef,
+      resourceDict: page.resourceDict,
       objects: s.objects,
     });
 
