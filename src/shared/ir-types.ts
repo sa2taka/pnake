@@ -261,6 +261,8 @@ export interface PdfOperation {
   rawRange?: ByteRange;
   decodedRange?: ByteRange;
   resourceRefs?: ObjectId[];
+  /** Currently-active /MCID from the enclosing BDC marked-content block. */
+  mcid?: number;
 }
 
 // =============================================================================

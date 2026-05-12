@@ -47,6 +47,8 @@ export function parseContentStream(
   let stack: PdfValue[] = [];
   let seq = 0;
   let stackStart = 0;
+  /** MCID stack tracked through BDC / EMC; only innermost wins per spec. */
+  const mcidStack: (number | undefined)[] = [];
 
   while (true) {
     const peek = tokens.peek();
@@ -65,14 +67,31 @@ export function parseContentStream(
         stack = [];
         continue;
       }
-      ops.push({
+      const activeMcid = mcidStack.length > 0 ? mcidStack[mcidStack.length - 1] : undefined;
+      const operation: PdfOperation = {
         id: operationId(pageNumber, seq),
         sequence: seq++,
         operator: peek.value,
         operands: stack,
         category: categorizeOperator(peek.value),
         decodedRange: { start: opStart, end: peek.range.end },
-      });
+      };
+      if (activeMcid != null) operation.mcid = activeMcid;
+      ops.push(operation);
+      // BDC pushes /MCID from the dict operand; BMC pushes nothing.
+      if (peek.value === "BDC") {
+        const dict = stack[1];
+        let pushed: number | undefined;
+        if (dict?.kind === "dict") {
+          const mcid = dict.entries.MCID;
+          if (mcid?.kind === "int") pushed = mcid.value;
+        }
+        mcidStack.push(pushed);
+      } else if (peek.value === "BMC") {
+        mcidStack.push(undefined);
+      } else if (peek.value === "EMC") {
+        mcidStack.pop();
+      }
       stack = [];
       continue;
     }

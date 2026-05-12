@@ -1,5 +1,6 @@
 import { useApp } from "../../state/AppContext";
 import type {
+  ObjectId,
   PdfStructTreeChild,
   PdfStructTreeNode,
 } from "../../../shared/ir-types";
@@ -84,14 +85,12 @@ function StructChildRow({
   }
   if (child.kind === "mcid") {
     return (
-      <li className="treepanel-row" data-testid={`struct-mcid-${child.mcid}`}>
-        <span className="treepanel-row-id" style={{ paddingLeft: depth * 12 }}>
-          MCID {child.mcid}
-        </span>
-        {child.page && (
-          <span className="treepanel-row-hint">page = {child.page}</span>
-        )}
-      </li>
+      <McidRow
+        mcid={child.mcid}
+        page={child.page}
+        depth={depth}
+        onSelect={onSelect}
+      />
     );
   }
   // objr
@@ -104,6 +103,52 @@ function StructChildRow({
       <span className="treepanel-row-id" style={{ paddingLeft: depth * 12 }}>
         OBJ {child.ref}
       </span>
+    </li>
+  );
+}
+
+function McidRow({
+  mcid,
+  page,
+  depth,
+  onSelect,
+}: {
+  mcid: number;
+  page: ObjectId | undefined;
+  depth: number;
+  onSelect: (id: string) => void;
+}): JSX.Element {
+  const { state, dispatch } = useApp();
+  // Try to resolve the MCID to a concrete operation on the current page.
+  const opOnCurrentPage = state.pageOperations?.operations.find((o) => o.mcid === mcid);
+  return (
+    <li
+      className="treepanel-row"
+      data-testid={`struct-mcid-${mcid}`}
+      onClick={() => {
+        // If a different page is requested, switch to it; the click handler
+        // then re-resolves the MCID on that page.
+        if (page && state.analysis) {
+          const idx = state.analysis.pages.findIndex((p) => p.objectRef === page);
+          if (idx >= 0 && idx + 1 !== state.currentPage) {
+            dispatch({ type: "setCurrentPage", pageNumber: idx + 1 });
+            return;
+          }
+        }
+        if (opOnCurrentPage) onSelect(opOnCurrentPage.id);
+      }}
+    >
+      <span className="treepanel-row-id" style={{ paddingLeft: depth * 12 }}>
+        MCID {mcid}
+      </span>
+      {page && (
+        <span className="treepanel-row-hint">page = {page}</span>
+      )}
+      {opOnCurrentPage && (
+        <span className="treepanel-chip" data-kind={opOnCurrentPage.category}>
+          {opOnCurrentPage.operator}
+        </span>
+      )}
     </li>
   );
 }
