@@ -72,8 +72,20 @@ export interface PdfFileInfo {
   acroForm: boolean;
   xfa: boolean;
   signatures: number;
+  formFields: number;
   embeddedFiles: number;
   hasJavaScript: boolean;
+}
+
+export type PdfFormFieldType = "Tx" | "Btn" | "Ch" | "Sig" | "Unknown";
+
+export interface PdfFormField {
+  objectRef: ObjectId;
+  name: string;
+  fullName: string;
+  fieldType: PdfFormFieldType;
+  value?: string;
+  signed: boolean;
 }
 
 export interface PdfXrefEntry {
@@ -336,6 +348,7 @@ export interface PdfAnalysis {
   objectsIndex: Record<ObjectId, PdfObjectSummary>;
   documentTree?: PdfDocumentTree;
   pages: PdfPageSummary[];
+  formFields: PdfFormField[];
   warnings: PdfWarning[];
 }
 

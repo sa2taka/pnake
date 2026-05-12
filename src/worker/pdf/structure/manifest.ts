@@ -25,6 +25,8 @@ import type {
   PdfDocumentTree,
   PdfFileInfo,
   PdfFileStructure,
+  PdfFormField,
+  PdfFormFieldType,
   PdfObjectKind,
   PdfObjectSummary,
   PdfPageSummary,
@@ -113,6 +115,10 @@ export async function parsePdf(bytes: Uint8Array): Promise<ParseResult> {
   const documentTree = resolveDocumentTree(rootTrailerDict, objectsByOffset);
   const pages = enumeratePages(documentTree, objectsByOffset, warnings);
 
+  // 7.5 Walk AcroForm field tree, if any.
+  const formFields = enumerateFormFields(documentTree, objectsByOffset);
+  const signatures = formFields.filter((f) => f.fieldType === "Sig" && f.signed).length;
+
   // 8. File info
   const fileInfo: PdfFileInfo = {
     byteSize: bytes.length,
@@ -123,7 +129,8 @@ export async function parsePdf(bytes: Uint8Array): Promise<ParseResult> {
     tagged: detectTagged(documentTree, objectsByOffset),
     acroForm: detectAcroForm(documentTree, objectsByOffset),
     xfa: detectXfa(documentTree, objectsByOffset),
-    signatures: 0,
+    signatures,
+    formFields: formFields.length,
     embeddedFiles: documentTree?.embeddedFiles?.length ?? 0,
     hasJavaScript: detectJavaScript(documentTree, objectsByOffset),
   };
@@ -140,6 +147,7 @@ export async function parsePdf(bytes: Uint8Array): Promise<ParseResult> {
     objectsIndex,
     documentTree,
     pages,
+    formFields,
     warnings,
   };
   return { analysis, objects: objectsByOffset, reader };
@@ -620,6 +628,73 @@ function normalizeRotation(r: number): 0 | 90 | 180 | 270 {
 // =============================================================================
 // File-level feature detection
 // =============================================================================
+
+function enumerateFormFields(
+  tree: PdfDocumentTree | undefined,
+  objects: Map<ObjectId, IndirectObject>,
+): PdfFormField[] {
+  if (!tree?.acroFormRef) return [];
+  const acro = objects.get(tree.acroFormRef);
+  if (!acro || acro.value.kind !== "dict") return [];
+  const fields = expectArray(acro.value.entries.Fields);
+  if (!fields) return [];
+  const out: PdfFormField[] = [];
+  const visited = new Set<ObjectId>();
+  for (const fieldRef of fields) {
+    const ref = expectRef(fieldRef);
+    if (ref) walkFormField(ref, "", objects, out, visited);
+  }
+  return out;
+}
+
+function walkFormField(
+  ref: ObjectId,
+  parentName: string,
+  objects: Map<ObjectId, IndirectObject>,
+  out: PdfFormField[],
+  visited: Set<ObjectId>,
+): void {
+  if (visited.has(ref)) return;
+  visited.add(ref);
+  const obj = objects.get(ref);
+  if (!obj || obj.value.kind !== "dict") return;
+  const dict = obj.value.entries;
+  const partialName = readString(dict.T) ?? "";
+  const fullName = partialName
+    ? parentName
+      ? `${parentName}.${partialName}`
+      : partialName
+    : parentName;
+  const kids = expectArray(dict.Kids);
+  if (kids && kids.length > 0) {
+    for (const kid of kids) {
+      const kidRef = expectRef(kid);
+      if (kidRef) walkFormField(kidRef, fullName, objects, out, visited);
+    }
+    return;
+  }
+  const fieldType = pickFieldType(expectName(dict.FT));
+  const valueText = readString(dict.V);
+  out.push({
+    objectRef: ref,
+    name: partialName || fullName,
+    fullName,
+    fieldType,
+    ...(valueText ? { value: valueText } : {}),
+    signed: fieldType === "Sig" && dict.V?.kind === "ref",
+  });
+}
+
+function readString(value: PdfValue | undefined): string | undefined {
+  if (!value) return undefined;
+  if (value.kind === "string") return asciiString(value.raw);
+  return undefined;
+}
+
+function pickFieldType(name: string | undefined): PdfFormFieldType {
+  if (name === "Tx" || name === "Btn" || name === "Ch" || name === "Sig") return name;
+  return "Unknown";
+}
 
 function detectLinearized(reader: ByteReader): boolean {
   // Linearized PDFs have a "/Linearized" dictionary near the start.

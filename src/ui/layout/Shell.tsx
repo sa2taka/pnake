@@ -134,6 +134,15 @@ function StatusBar(): JSX.Element {
           <span className="statusbar-segment statusbar-muted">
             {Object.keys(a.objectsIndex).length} objs / {a.pages.length} pages
           </span>
+          {a.fileInfo.tagged && (
+            <span className="statusbar-segment statusbar-muted">tagged</span>
+          )}
+          {a.fileInfo.formFields > 0 && (
+            <span className="statusbar-segment statusbar-muted">
+              {a.fileInfo.formFields} fields
+              {a.fileInfo.signatures > 0 && ` / ${a.fileInfo.signatures} sig`}
+            </span>
+          )}
           {a.warnings.length > 0 && (
             <span className="statusbar-segment statusbar-warning">
               ⚠ {a.warnings.length}
