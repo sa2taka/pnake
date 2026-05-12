@@ -131,12 +131,22 @@ function paeth(a: number, b: number, c: number): number {
 // TIFF predictor 2 (component-wise additive)
 // =============================================================================
 
+export class UnsupportedPredictorError extends Error {
+  readonly name = "UnsupportedPredictorError";
+  constructor(public bitsPerComponent: number) {
+    super(`TIFF predictor with ${bitsPerComponent}-bit samples is not implemented`);
+  }
+}
+
 export function tiffPredictorRowMajor(input: Uint8Array, parms: FlateDecodeParms): Uint8Array {
   const colors = Math.max(1, parms.colors);
   const bpc = parms.bitsPerComponent <= 0 ? 8 : parms.bitsPerComponent;
   if (bpc !== 8) {
-    // Multi-bit TIFF predictor variants are rare in PDF — emit unchanged.
-    return input;
+    // Multi-bit TIFF predictor 2 (1/2/4/16 bpc with sub-byte sample packing)
+    // is uncommon in PDF but real. Returning the input unchanged hid the
+    // problem behind a "looks decoded" stream; raise instead so callers
+    // can choose to warn or display the raw bytes.
+    throw new UnsupportedPredictorError(bpc);
   }
   const columns = Math.max(1, parms.columns);
   const bytesPerRow = colors * columns;
