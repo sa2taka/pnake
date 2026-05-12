@@ -172,17 +172,58 @@ export class IndirectObjectReader {
   }
 }
 
+/**
+ * Scan forward from `dataStart` for an `endstream` keyword whose
+ * boundaries look right.
+ *
+ * The raw `indexOf("endstream")` form was a false-positive trap:
+ * binary stream payloads can contain the byte sequence `endstream`
+ * inside JPEG / Flate output and we would terminate the stream mid-
+ * data. Per ISO 32000-2 §7.3.8.1, `endstream` must follow whitespace
+ * and be followed by whitespace; we enforce both.
+ *
+ * We prefer EOL-prefixed candidates first (the spec-recommended
+ * form). Only if those fail do we accept a generic whitespace
+ * prefix.
+ */
 function scanForEndstream(
   reader: ByteReader,
   dataStart: number,
   number: number,
   generation: number,
 ): number {
-  const idx = reader.indexOf(KW_ENDSTREAM, dataStart);
-  if (idx === -1) {
-    throw new ParseError(`Missing endstream for object ${number} ${generation}`);
+  // First pass: require an EOL (\n / \r) directly before `endstream` and
+  // delimiter / whitespace right after. This is what well-formed writers emit.
+  const eolMatch = scanWithPrefix(reader, dataStart, isEol);
+  if (eolMatch !== -1) return eolMatch;
+  // Second pass: any whitespace before, as a recovery for malformed writers.
+  const wsMatch = scanWithPrefix(reader, dataStart, isWhitespace);
+  if (wsMatch !== -1) return wsMatch;
+  throw new ParseError(
+    `Missing endstream for object ${number} ${generation}`,
+  );
+}
+
+function scanWithPrefix(
+  reader: ByteReader,
+  dataStart: number,
+  isPrefix: (byte: number) => boolean,
+): number {
+  let from = dataStart;
+  while (true) {
+    const idx = reader.indexOf(KW_ENDSTREAM, from);
+    if (idx === -1) return -1;
+    if (idx === dataStart) {
+      // Zero-length stream — accept without prefix check.
+      return idx;
+    }
+    const prev = reader.bytes[idx - 1];
+    const next = reader.bytes[idx + KW_ENDSTREAM.length];
+    const prevOk = prev !== undefined && isPrefix(prev);
+    const nextOk = next === undefined || isWhitespace(next) || next === 0x2f; // EOF, ws, or "/" (next object)
+    if (prevOk && nextOk) return idx;
+    from = idx + 1; // skip past this false positive and keep searching
   }
-  return idx;
 }
 
 function skipSingleEol(reader: ByteReader): void {
