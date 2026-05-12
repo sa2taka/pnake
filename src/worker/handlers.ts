@@ -7,6 +7,8 @@
 
 import type {
   ObjectId,
+  PdfDict,
+  PdfFilter,
   PdfObjectDetail,
   PdfValue,
 } from "../shared/ir-types";
@@ -20,6 +22,7 @@ import { resolveResources } from "./pdf/resources/resolver";
 import { parseToUnicodeCMap, type ToUnicodeCMap } from "./pdf/resources/cmap";
 import { decodeStream, extractDecodeParms } from "./pdf/streams/decode";
 import { parsePdf } from "./pdf/structure/manifest";
+import { LruCache } from "./lru-cache";
 
 interface State {
   bytes: Uint8Array;
@@ -30,6 +33,7 @@ interface State {
 
 export class ParserState {
   private state?: State;
+  private decodedCache = new LruCache<ObjectId, Uint8Array>(32);
 
   async load(buffer: ArrayBuffer): Promise<LoadResult> {
     const bytes = new Uint8Array(buffer);
@@ -40,6 +44,7 @@ export class ParserState {
       objects,
       analysisJson: { analysis },
     };
+    this.decodedCache.clear();
     return this.state.analysisJson;
   }
 
@@ -82,27 +87,34 @@ export class ParserState {
       streamRangeStart(obj, s.bytes),
       streamRangeStart(obj, s.bytes) + handle.length,
     );
-    const copy = raw.slice();
     if (mode === "raw") {
+      const copy = raw.slice();
       return {
         bytes: copy.buffer,
         decoded: false,
         truncated: false,
       };
     }
-    const decoded = await decodeStream(
-      raw,
-      handle.filters,
-      extractDecodeParms(obj.value.dict),
-    );
+    const decoded = await this.decodeCached(objectId, raw, handle.filters, obj.value.dict);
+    const transfer = decoded.slice();
     return {
-      bytes: (decoded.buffer as ArrayBuffer).slice(
-        decoded.byteOffset,
-        decoded.byteOffset + decoded.byteLength,
-      ),
+      bytes: transfer.buffer,
       decoded: true,
       truncated: false,
     };
+  }
+
+  private async decodeCached(
+    objectId: ObjectId,
+    raw: Uint8Array,
+    filters: PdfFilter[],
+    streamDict: PdfDict,
+  ): Promise<Uint8Array> {
+    const cached = this.decodedCache.get(objectId);
+    if (cached) return cached;
+    const decoded = await decodeStream(raw, filters, extractDecodeParms(streamDict));
+    this.decodedCache.set(objectId, decoded);
+    return decoded;
   }
 
   async getPageOperations(pageNumber: number): Promise<PageOperationsResult> {
@@ -202,7 +214,7 @@ export class ParserState {
     const dict = obj.value.dict;
     const start = streamRangeStart(obj, s.bytes);
     const raw = s.bytes.subarray(start, start + obj.value.handle.length);
-    return decodeStream(raw, extractFilters(dict), extractDecodeParms(dict));
+    return this.decodeCached(objectId, raw, extractFilters(dict), dict);
   }
 
   private require(): State {
