@@ -460,8 +460,22 @@ function enumeratePages(
   if (!tree) return [];
   const pages: PdfPageSummary[] = [];
   const visited = new Set<ObjectId>();
-  walkPages(tree.pagesRootRef, objects, pages, visited, warnings);
+  walkPages(tree.pagesRootRef, objects, pages, visited, warnings, {});
   return pages;
+}
+
+/**
+ * Attributes that descend through the page tree (ISO 32000-2 §7.7.3.4).
+ *
+ * Inheritable: MediaBox, CropBox, Resources, Rotate. Other box types
+ * (BleedBox, TrimBox, ArtBox) default to CropBox / MediaBox per spec,
+ * but only if not explicitly set, which we model below.
+ */
+interface InheritedPageAttrs {
+  mediaBox?: PdfPageSummary["boxes"]["mediaBox"];
+  cropBox?: PdfPageSummary["boxes"]["mediaBox"];
+  rotate?: number;
+  resourceRef?: ObjectId;
 }
 
 function walkPages(
@@ -470,6 +484,7 @@ function walkPages(
   pages: PdfPageSummary[],
   visited: Set<ObjectId>,
   warnings: PdfWarning[],
+  inherited: InheritedPageAttrs,
 ): void {
   if (visited.has(ref)) return;
   visited.add(ref);
@@ -486,31 +501,52 @@ function walkPages(
   const dict = obj.value.kind === "dict" ? obj.value.entries : undefined;
   if (!dict) return;
   const typeName = expectName(dict.Type);
+  // Merge inheritable attributes from this node onto whatever we already have.
+  const next = mergeInherited(inherited, dict);
   if (typeName === "Pages") {
     const kids = expectArray(dict.Kids) ?? [];
     for (const kid of kids) {
       const childRef = expectRef(kid);
-      if (childRef) walkPages(childRef, objects, pages, visited, warnings);
+      if (childRef) walkPages(childRef, objects, pages, visited, warnings, next);
     }
     return;
   }
   if (typeName === "Page") {
-    pages.push(buildPageSummary(pages.length + 1, ref, dict));
+    pages.push(buildPageSummary(pages.length + 1, ref, dict, next));
   }
 }
 
-function buildPageSummary(pageNumber: number, ref: ObjectId, dict: PdfDict): PdfPageSummary {
-  const mediaBox = readRect(dict.MediaBox) ?? { x: 0, y: 0, w: 0, h: 0 };
+function mergeInherited(parent: InheritedPageAttrs, dict: PdfDict): InheritedPageAttrs {
+  const next: InheritedPageAttrs = { ...parent };
+  const mediaBox = readRect(dict.MediaBox);
+  if (mediaBox) next.mediaBox = mediaBox;
+  const cropBox = readRect(dict.CropBox);
+  if (cropBox) next.cropBox = cropBox;
+  const rotate = expectInt(dict.Rotate);
+  if (rotate != null) next.rotate = rotate;
+  const resRef = expectRef(dict.Resources);
+  if (resRef) next.resourceRef = resRef;
+  return next;
+}
+
+function buildPageSummary(
+  pageNumber: number,
+  ref: ObjectId,
+  dict: PdfDict,
+  inherited: InheritedPageAttrs,
+): PdfPageSummary {
+  const mediaBox =
+    readRect(dict.MediaBox) ?? inherited.mediaBox ?? { x: 0, y: 0, w: 0, h: 0 };
   const summary: PdfPageSummary = {
     pageNumber,
     objectRef: ref,
     boxes: { mediaBox },
-    rotation: normalizeRotation(expectInt(dict.Rotate) ?? 0),
+    rotation: normalizeRotation(expectInt(dict.Rotate) ?? inherited.rotate ?? 0),
     userUnit: 1,
     contentStreamRefs: refsFromValue(dict.Contents),
     annotationRefs: refsFromValue(dict.Annots),
   };
-  const cropBox = readRect(dict.CropBox);
+  const cropBox = readRect(dict.CropBox) ?? inherited.cropBox;
   const bleedBox = readRect(dict.BleedBox);
   const trimBox = readRect(dict.TrimBox);
   const artBox = readRect(dict.ArtBox);
@@ -518,7 +554,7 @@ function buildPageSummary(pageNumber: number, ref: ObjectId, dict: PdfDict): Pdf
   if (bleedBox) summary.boxes.bleedBox = bleedBox;
   if (trimBox) summary.boxes.trimBox = trimBox;
   if (artBox) summary.boxes.artBox = artBox;
-  const resRef = expectRef(dict.Resources);
+  const resRef = expectRef(dict.Resources) ?? inherited.resourceRef;
   if (resRef) summary.resourceRef = resRef;
   return summary;
 }
