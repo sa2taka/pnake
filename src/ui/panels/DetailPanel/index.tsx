@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FC } from "react";
 import { PanelHeader } from "../PanelHeader";
 import { useApp } from "../../state/AppContext";
 import { isObjectId, isOperationId } from "../../../shared/ir-types";
@@ -9,7 +9,7 @@ import "./DetailPanel.css";
 
 type Tab = "human" | "technical" | "raw";
 
-export function DetailPanel(): React.JSX.Element {
+export const DetailPanel: FC = () => {
   const { state, parser, dispatch } = useApp();
   const [detail, setDetail] = useState<PdfObjectDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -85,11 +85,12 @@ export function DetailPanel(): React.JSX.Element {
       </div>
     </div>
   );
-}
+};
 
-function HumanView({ detail }: { detail: PdfObjectDetail }): React.JSX.Element {
-  return (
-    <div className="detailpanel-human">
+type HumanViewProps = { detail: PdfObjectDetail };
+
+const HumanView: FC<HumanViewProps> = ({ detail }) => (
+  <div className="detailpanel-human">
       <p>
         Object <code>{detail.id}</code> is a <strong>{detail.type}</strong>
         {detail.hint && (
@@ -105,19 +106,16 @@ function HumanView({ detail }: { detail: PdfObjectDetail }): React.JSX.Element {
           This object carries a stream. Switch to the bottom drawer to inspect raw or decoded bytes.
         </p>
       )}
-    </div>
-  );
-}
+  </div>
+);
 
-function TechnicalView({
-  detail,
-  dispatch,
-}: {
+type TechnicalViewProps = {
   detail: PdfObjectDetail;
   dispatch: ReturnType<typeof useApp>["dispatch"];
-}): React.JSX.Element {
-  return (
-    <div className="detailpanel-technical">
+};
+
+const TechnicalView: FC<TechnicalViewProps> = ({ detail, dispatch }) => (
+  <div className="detailpanel-technical">
       <dl className="detailpanel-meta">
         <dt>ID</dt>
         <dd>{detail.id}</dd>
@@ -141,15 +139,16 @@ function TechnicalView({
         value={detail.value}
         onRefClick={(id) => dispatch({ type: "select", nodeId: id, origin: "detail" })}
       />
-    </div>
-  );
-}
+  </div>
+);
 
-function RawView({ detail }: { detail: PdfObjectDetail }): React.JSX.Element {
-  return <pre className="detailpanel-raw">{detail.rawText}</pre>;
-}
+const RawView: FC<{ detail: PdfObjectDetail }> = ({ detail }) => (
+  <pre className="detailpanel-raw">{detail.rawText}</pre>
+);
 
-function OperationView({ operation, tab }: { operation: PdfOperation; tab: Tab }): React.JSX.Element {
+type OperationViewProps = { operation: PdfOperation; tab: Tab };
+
+const OperationView: FC<OperationViewProps> = ({ operation, tab }) => {
   const explanation = explainOperator(operation);
   if (tab === "human") {
     return (
@@ -202,7 +201,7 @@ function OperationView({ operation, tab }: { operation: PdfOperation; tab: Tab }
       </ul>
     </div>
   );
-}
+};
 
 function formatOperands(operands: PdfOperation["operands"]): string {
   if (operands.length === 0) return "";

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FC } from "react";
 import { PanelHeader } from "../PanelHeader";
 import { useApp, type BottomTab } from "../../state/AppContext";
 import { isObjectId } from "../../../shared/ir-types";
@@ -13,7 +13,7 @@ const TABS: { id: BottomTab; label: string }[] = [
 
 const MAX_PREVIEW_BYTES = 4096;
 
-export function BottomDrawer(): React.JSX.Element {
+export const BottomDrawer: FC = () => {
   const { state, parser, dispatch } = useApp();
   const tab = state.bottomTab;
 
@@ -46,17 +46,15 @@ export function BottomDrawer(): React.JSX.Element {
       </div>
     </div>
   );
-}
+};
 
-function StreamPreview({
-  tab,
-  parser,
-  selectedId,
-}: {
+type StreamPreviewProps = {
   tab: "raw" | "decoded";
   parser: ReturnType<typeof useApp>["parser"];
   selectedId: string | undefined;
-}): React.JSX.Element {
+};
+
+const StreamPreview: FC<StreamPreviewProps> = ({ tab, parser, selectedId }) => {
   const [bytes, setBytes] = useState<Uint8Array | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -94,9 +92,11 @@ function StreamPreview({
     );
   if (!bytes) return <p className="bottomdrawer-empty">No stream data.</p>;
   return <HexView bytes={bytes} />;
-}
+};
 
-function HexView({ bytes }: { bytes: Uint8Array }): React.JSX.Element {
+type HexViewProps = { bytes: Uint8Array };
+
+const HexView: FC<HexViewProps> = ({ bytes }) => {
   const visible = bytes.subarray(0, MAX_PREVIEW_BYTES);
   const lines: { offset: number; hex: string; ascii: string }[] = [];
   for (let i = 0; i < visible.length; i += 16) {
@@ -129,4 +129,4 @@ function HexView({ bytes }: { bytes: Uint8Array }): React.JSX.Element {
       )}
     </div>
   );
-}
+};

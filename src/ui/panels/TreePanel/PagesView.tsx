@@ -1,6 +1,7 @@
 import { useApp } from "../../state/AppContext";
+import type { FC } from "react";
 
-export function PagesView(): React.JSX.Element {
+export const PagesView: FC = () => {
   const { state, dispatch } = useApp();
   const pages = state.document.status === "loaded" ? state.document.analysis.pages : [];
   if (pages.length === 0) {
@@ -24,4 +25,4 @@ export function PagesView(): React.JSX.Element {
       ))}
     </ul>
   );
-}
+};

@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type FC } from "react";
 import { useApp } from "../../state/AppContext";
 import type { PdfOperation, PdfValue } from "../../../shared/ir-types";
 
-export function ContentView(): React.JSX.Element {
+export const ContentView: FC = () => {
   const { state, dispatch } = useApp();
   const pageOps = state.pageOps;
   const operations = pageOps.status === "loaded" ? pageOps.result.operations : [];
@@ -71,7 +71,7 @@ export function ContentView(): React.JSX.Element {
       })}
     </ul>
   );
-}
+};
 
 function formatOperands(operands: PdfOperation["operands"]): string {
   if (operands.length === 0) return "";

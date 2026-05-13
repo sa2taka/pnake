@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FC } from "react";
 import { useApp } from "../../state/AppContext";
 import { useVirtualList } from "../../hooks/useVirtualList";
 import type { PdfObjectKind, PdfObjectSummary } from "../../../shared/ir-types";
 
 const ROW_HEIGHT = 24;
 
-export function ObjectsView(): React.JSX.Element {
+export const ObjectsView: FC = () => {
   const { state, dispatch } = useApp();
   const [filter, setFilter] = useState("");
 
@@ -70,15 +70,15 @@ export function ObjectsView(): React.JSX.Element {
       </div>
     </div>
   );
-}
+};
 
 type ObjectRowProps = {
   obj: PdfObjectSummary;
   selected: boolean;
   onSelect: () => void;
-}
+};
 
-function ObjectRow({ obj, selected, onSelect }: ObjectRowProps): React.JSX.Element {
+const ObjectRow: FC<ObjectRowProps> = ({ obj, selected, onSelect }) => {
   return (
     <div
       role="option"
@@ -100,16 +100,16 @@ function ObjectRow({ obj, selected, onSelect }: ObjectRowProps): React.JSX.Eleme
       {obj.hint && <span className="treepanel-row-hint">{obj.hint}</span>}
     </div>
   );
-}
+};
 
-function KindChip({ kind, stream }: { kind: PdfObjectKind; stream: boolean }): React.JSX.Element {
-  return (
-    <span className="treepanel-chip" data-kind={kind}>
-      {chipLabel(kind)}
-      {stream ? "·S" : ""}
-    </span>
-  );
-}
+type KindChipProps = { kind: PdfObjectKind; stream: boolean };
+
+const KindChip: FC<KindChipProps> = ({ kind, stream }) => (
+  <span className="treepanel-chip" data-kind={kind}>
+    {chipLabel(kind)}
+    {stream ? "·S" : ""}
+  </span>
+);
 
 function chipLabel(kind: PdfObjectKind): string {
   switch (kind) {

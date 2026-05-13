@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FC } from "react";
 import { PanelHeader } from "../PanelHeader";
 import { useApp } from "../../state/AppContext";
 import { renderPageWithHandle } from "../../../pdfjs/renderer";
@@ -6,7 +6,7 @@ import { RenderOverlay } from "../../overlay/RenderOverlay";
 import { isOperationId } from "../../../shared/ir-types";
 import "./RenderPanel.css";
 
-export function RenderPanel(): React.JSX.Element {
+export const RenderPanel: FC = () => {
   const { state } = useApp();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<string>("");
@@ -90,4 +90,4 @@ export function RenderPanel(): React.JSX.Element {
       </div>
     </div>
   );
-}
+};

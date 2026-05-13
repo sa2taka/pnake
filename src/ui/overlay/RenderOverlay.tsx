@@ -10,7 +10,7 @@
  * later-in-document-order paint rule).
  */
 
-import { useMemo } from "react";
+import { useMemo, type FC } from "react";
 import { useApp } from "../state/AppContext";
 import type { PdfPageSummary, PdfRect, PdfVisualElement } from "../../shared/ir-types";
 import "./RenderOverlay.css";
@@ -21,14 +21,14 @@ type RenderOverlayProps = {
   /** Canvas backing-store size in pixels (already includes scale). */
   pixelSize: { width: number; height: number };
   selectedOperationId?: string;
-}
+};
 
-export function RenderOverlay({
+export const RenderOverlay: FC<RenderOverlayProps> = ({
   page,
   elements,
   pixelSize,
   selectedOperationId,
-}: RenderOverlayProps): React.JSX.Element {
+}) => {
   const { dispatch } = useApp();
   const userBox = page.boxes.mediaBox;
   const rotation = page.rotation;
@@ -92,7 +92,7 @@ export function RenderOverlay({
       })}
     </svg>
   );
-}
+};
 
 /**
  * Build a projector from PDF user-space to SVG pixel space that respects

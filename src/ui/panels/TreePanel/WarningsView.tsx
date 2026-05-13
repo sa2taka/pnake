@@ -1,7 +1,8 @@
 import { useApp } from "../../state/AppContext";
+import type { FC } from "react";
 import type { PdfWarning } from "../../../shared/ir-types";
 
-export function WarningsView(): React.JSX.Element {
+export const WarningsView: FC = () => {
   const { state } = useApp();
   const warnings = state.document.status === "loaded" ? state.document.analysis.warnings : [];
   if (warnings.length === 0) {
@@ -14,9 +15,11 @@ export function WarningsView(): React.JSX.Element {
       ))}
     </ul>
   );
-}
+};
 
-function WarningRow({ warning }: { warning: PdfWarning }): React.JSX.Element {
+type WarningRowProps = { warning: PdfWarning };
+
+const WarningRow: FC<WarningRowProps> = ({ warning }) => {
   const tone =
     warning.severity === "error" ? "danger" : warning.severity === "warn" ? "warning" : "info";
   return (
@@ -28,4 +31,4 @@ function WarningRow({ warning }: { warning: PdfWarning }): React.JSX.Element {
       <span className="treepanel-row-hint">{warning.message}</span>
     </li>
   );
-}
+};

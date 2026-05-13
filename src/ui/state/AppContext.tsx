@@ -17,6 +17,7 @@ import {
   useEffect,
   useReducer,
   useState,
+  type FC,
   type ReactNode,
 } from "react";
 import { createDefaultParserService, type ParserService } from "../services/parser-service";
@@ -242,7 +243,7 @@ function useParserService(externalService: ParserService | undefined): ParserSer
   return externalService ?? internal;
 }
 
-export function AppProvider({ children, parserService }: AppProviderProps): React.JSX.Element {
+export const AppProvider: FC<AppProviderProps> = ({ children, parserService }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const parser = useParserService(parserService);
 
@@ -304,7 +305,7 @@ export function AppProvider({ children, parserService }: AppProviderProps): Reac
       </DispatchContext.Provider>
     </ParserContext.Provider>
   );
-}
+};
 
 export function useAppState(): AppState {
   const state = useContext(StateContext);

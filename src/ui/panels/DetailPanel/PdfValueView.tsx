@@ -1,28 +1,24 @@
-import { useState } from "react";
+import { useState, type FC } from "react";
 import type { ObjectId, PdfValue } from "../../../shared/ir-types";
 
 type PdfValueViewProps = {
   value: PdfValue;
   onRefClick?: (objectId: ObjectId) => void;
-}
+};
 
-export function PdfValueView({ value, onRefClick }: PdfValueViewProps): React.JSX.Element {
-  return (
-    <div className="pdfvalue">
-      <Value value={value} onRefClick={onRefClick} depth={0} />
-    </div>
-  );
-}
+export const PdfValueView: FC<PdfValueViewProps> = ({ value, onRefClick }) => (
+  <div className="pdfvalue">
+    <Value value={value} onRefClick={onRefClick} depth={0} />
+  </div>
+);
 
-function Value({
-  value,
-  onRefClick,
-  depth,
-}: {
+type ValueProps = {
   value: PdfValue;
   onRefClick?: (id: ObjectId) => void;
   depth: number;
-}): React.JSX.Element {
+};
+
+const Value: FC<ValueProps> = ({ value, onRefClick, depth }) => {
   switch (value.kind) {
     case "null":
       return <span className="pdfvalue-null">null</span>;
@@ -99,21 +95,17 @@ function Value({
       return <span>{String(_x)}</span>;
     }
   }
-}
+};
 
-function Collection({
-  open,
-  close,
-  items,
-  onRefClick,
-  depth,
-}: {
+type CollectionProps = {
   open: string;
   close: string;
   items: { key: string; label?: string; value: PdfValue }[];
   onRefClick?: (id: ObjectId) => void;
   depth: number;
-}): React.JSX.Element {
+};
+
+const Collection: FC<CollectionProps> = ({ open, close, items, onRefClick, depth }) => {
   const [collapsed, setCollapsed] = useState(depth > 1);
   if (items.length === 0) {
     return (
@@ -153,13 +145,11 @@ function Collection({
       {!collapsed && <span className="pdfvalue-close">{close}</span>}
     </span>
   );
-}
+};
 
-function StringView({
-  value,
-}: {
-  value: { kind: "string"; raw: Uint8Array; hex?: boolean };
-}): React.JSX.Element {
+type StringViewProps = { value: { kind: "string"; raw: Uint8Array; hex?: boolean } };
+
+const StringView: FC<StringViewProps> = ({ value }) => {
   const text = tryDecode(value.raw);
   if (text != null) {
     return <span className="pdfvalue-string">{`(${escape(text)})`}</span>;
@@ -174,7 +164,7 @@ function StringView({
       {value.raw.length > 32 ? "…" : ""}&gt;
     </span>
   );
-}
+};
 
 function tryDecode(raw: Uint8Array): string | null {
   let s = "";

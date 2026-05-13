@@ -1,18 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type FC } from "react";
 
 type SplitterProps = {
   orientation: "vertical" | "horizontal";
   onDrag: (delta: number) => void;
   onDoubleClick?: () => void;
   spanColumns?: boolean;
-}
+};
 
-export function Splitter({
+export const Splitter: FC<SplitterProps> = ({
   orientation,
   onDrag,
   onDoubleClick,
   spanColumns = false,
-}: SplitterProps): React.JSX.Element {
+}) => {
   const [active, setActive] = useState(false);
   const lastRef = useRef<number | null>(null);
 
@@ -67,4 +67,4 @@ export function Splitter({
       onDoubleClick={onDoubleClick}
     />
   );
-}
+};

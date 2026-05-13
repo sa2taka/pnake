@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FC } from "react";
 import { Toolbar } from "../panels/Toolbar";
 import { TreePanel } from "../panels/TreePanel";
 import { RenderPanel } from "../panels/RenderPanel";
@@ -43,7 +43,7 @@ function saveLayout(layout: LayoutState): void {
   }
 }
 
-export function Shell(): React.JSX.Element {
+export const Shell: FC = () => {
   const { state, dispatch } = useApp();
   const [layout, setLayout] = useState<LayoutState>(loadLayout);
   const bottomOpen = state.bottomOpen;
@@ -114,9 +114,9 @@ export function Shell(): React.JSX.Element {
       </div>
     </div>
   );
-}
+};
 
-function StatusBar(): React.JSX.Element {
+const StatusBar: FC = () => {
   const { state } = useApp();
   const a = state.document.status === "loaded" ? state.document.analysis : undefined;
   return (
@@ -149,7 +149,7 @@ function StatusBar(): React.JSX.Element {
       <span className="statusbar-segment statusbar-muted">⌘B drawer</span>
     </div>
   );
-}
+};
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;

@@ -1,11 +1,11 @@
-import { useRef } from "react";
+import { useRef, type FC } from "react";
 import { useApp, type TreeViewMode } from "../state/AppContext";
 import "./Toolbar.css";
 
 type ToolbarProps = {
   bottomOpen: boolean;
   onToggleBottom: () => void;
-}
+};
 
 const VIEW_MODES: { value: TreeViewMode; label: string }[] = [
   { value: "file", label: "File" },
@@ -17,7 +17,7 @@ const VIEW_MODES: { value: TreeViewMode; label: string }[] = [
   { value: "warnings", label: "Warnings" },
 ];
 
-export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): React.JSX.Element {
+export const Toolbar: FC<ToolbarProps> = ({ bottomOpen, onToggleBottom }) => {
   const { state, dispatch, parser } = useApp();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -172,4 +172,4 @@ export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): React.JSX
       </div>
     </div>
   );
-}
+};
