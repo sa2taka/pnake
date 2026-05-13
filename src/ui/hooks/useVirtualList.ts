@@ -14,7 +14,7 @@ export type VirtualRange = {
 }
 
 export type UseVirtualListResult<E extends HTMLElement = HTMLElement> = {
-  containerRef: React.MutableRefObject<E | null>;
+  containerRef: React.RefObject<E | null>;
   range: VirtualRange;
   totalHeight: number;
 }

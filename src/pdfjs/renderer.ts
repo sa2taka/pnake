@@ -78,7 +78,7 @@ export function renderPageWithHandle(input: RenderPageInput): RenderHandle {
     canvas.width = Math.ceil(viewport.width);
     canvas.height = Math.ceil(viewport.height);
 
-    renderTask = page.render({ canvasContext: ctx, viewport, canvas } as never);
+    renderTask = page.render({ canvasContext: ctx, viewport, canvas });
     await renderTask.promise;
     return { width: canvas.width, height: canvas.height };
   })();
