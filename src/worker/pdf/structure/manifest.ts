@@ -2,34 +2,32 @@
  * Build a PdfAnalysis manifest from raw bytes.
  *
  * Pipeline:
- *   1. Detect header version.
- *   2. Locate the latest startxref offset.
- *   3. Walk the xref chain backward via /Prev (incremental updates).
- *      Both classic xref tables and xref streams are supported.
- *   4. Enumerate in-use objects, decode any object streams to recover
- *      compressed objects.
- *   5. Classify objects by /Type / /Subtype.
- *   6. Resolve /Catalog, /Pages root, and shallow page summaries.
- *   7. Collect warnings throughout.
+ *   1. parseStructure     — header, EOF markers, xref chain, recovery
+ *   2. loadObjectGraph    — in-use objects + ObjStm expansion + summaries
+ *   3. buildDocumentGraph — catalog, page tree, AcroForm field tree
+ *   4. collectFileInfo    — encrypted / linearized / tagged / xfa / js flags
  *
- * Stream bodies are NOT decoded here — the manifest stays lightweight
- * so the UI can render the object tree immediately while details are
- * pulled lazily.
+ * Each phase returns an intermediate result; the orchestrator at the
+ * bottom just composes them and merges the per-phase warnings into the
+ * analysis. Stream bodies are NOT decoded here — the manifest stays
+ * lightweight so the UI can render the object tree immediately while
+ * details are pulled lazily.
  */
 
 import type {
+  ByteRange,
   ObjectId,
   PdfAnalysis,
   PdfBody,
   PdfDict,
   PdfDocumentTree,
   PdfFileInfo,
-  PdfFileStructure,
   PdfFormField,
   PdfFormFieldType,
   PdfObjectKind,
   PdfObjectSummary,
   PdfPageSummary,
+  PdfRect,
   PdfTrailer,
   PdfValue,
   PdfWarning,
@@ -58,26 +56,90 @@ export interface ParseResult {
   reader: ByteReader;
 }
 
+// =============================================================================
+// Phase result shapes (intermediate, not part of the public IR)
+// =============================================================================
+
+interface HeaderInfo {
+  version: string;
+  range: ByteRange;
+  raw: string;
+}
+
+interface StructureParse {
+  header: HeaderInfo;
+  eofMarkers: ByteRange[];
+  bodies: PdfBody[];
+  xrefEntries: Map<number, PdfXrefEntry>;
+  /**
+   * Structured signal for what recovery, if any, was needed.
+   *  - "none":         clean xref walk
+   *  - "no-startxref": startxref missing entirely; scan-recovered
+   *  - "empty-xref":   xref walked but produced 0 entries; scan-recovered
+   *  - "partial-scan": at least one /Prev hop failed mid-walk; scan filled the gap
+   */
+  recovery: "none" | "no-startxref" | "empty-xref" | "partial-scan";
+  warnings: PdfWarning[];
+}
+
+interface ObjectGraph {
+  objects: Map<ObjectId, IndirectObject>;
+  objectsIndex: Record<ObjectId, PdfObjectSummary>;
+  warnings: PdfWarning[];
+}
+
+interface DocumentGraph {
+  tree?: PdfDocumentTree;
+  pages: PdfPageSummary[];
+  formFields: PdfFormField[];
+  warnings: PdfWarning[];
+}
+
+// =============================================================================
+// Orchestrator
+// =============================================================================
+
 export async function buildManifest(bytes: Uint8Array): Promise<PdfAnalysis> {
   return (await parsePdf(bytes)).analysis;
 }
 
 export async function parsePdf(bytes: Uint8Array): Promise<ParseResult> {
   const reader = new ByteReader(bytes);
+  const structure = await parseStructure(reader);
+  const graph = await loadObjectGraph(reader, structure);
+  const documents = buildDocumentGraph(graph.objects, structure);
+  const fileInfo = collectFileInfo(reader, bytes, structure, documents, graph.objects);
+
+  const analysis: PdfAnalysis = {
+    fileInfo,
+    fileStructure: {
+      header: { range: structure.header.range, raw: structure.header.raw },
+      bodies: structure.bodies,
+      eofMarkers: structure.eofMarkers,
+    },
+    objectsIndex: graph.objectsIndex,
+    ...(documents.tree ? { documentTree: documents.tree } : {}),
+    pages: documents.pages,
+    formFields: documents.formFields,
+    warnings: [...structure.warnings, ...graph.warnings, ...documents.warnings],
+  };
+  return { analysis, objects: graph.objects, reader };
+}
+
+// =============================================================================
+// Phase 1 — Structure: header / EOF / xref chain
+// =============================================================================
+
+async function parseStructure(reader: ByteReader): Promise<StructureParse> {
   const warnings: PdfWarning[] = [];
-
-  // 1. Header
   const header = readHeader(reader, warnings);
-
-  // 2. EOF markers
   const eofMarkers = findEofMarkers(reader);
-
-  // 3. startxref location
   const startxrefOffset = findStartxref(reader);
 
-  // 4. Walk xref chain
   const bodies: PdfBody[] = [];
-  const xrefEntries: Map<number, PdfXrefEntry> = new Map();
+  const xrefEntries = new Map<number, PdfXrefEntry>();
+  let recovery: StructureParse["recovery"] = "none";
+
   if (startxrefOffset == null) {
     warnings.push({
       id: "warn:startxref-missing",
@@ -87,9 +149,13 @@ export async function parsePdf(bytes: Uint8Array): Promise<ParseResult> {
         "Could not locate startxref — recovering by scanning for indirect object headers",
     });
     fillFromScan(reader, xrefEntries);
+    recovery = "no-startxref";
   } else {
-    const beforeChain = warnings.length;
-    await walkXrefChain(reader, startxrefOffset, bodies, xrefEntries, warnings);
+    const chain = await walkXrefChain(reader, startxrefOffset);
+    bodies.push(...chain.bodies);
+    for (const [num, entry] of chain.entries) xrefEntries.set(num, entry);
+    warnings.push(...chain.warnings);
+
     if (xrefEntries.size === 0) {
       warnings.push({
         id: "warn:xref-empty",
@@ -98,11 +164,11 @@ export async function parsePdf(bytes: Uint8Array): Promise<ParseResult> {
         message: "xref chain produced no usable entries; falling back to a linear scan",
       });
       fillFromScan(reader, xrefEntries);
-    } else if (warnings.slice(beforeChain).some((w) => w.id.startsWith("warn:xref-failed"))) {
-      // The chain partially succeeded but a /Prev hop failed mid-walk — some
-      // legitimate older-revision objects may be missing. A linear scan fills
-      // them in WITHOUT overwriting newer xref entries (fillFromScan respects
-      // existing keys), so the newest revision still wins where it speaks.
+      recovery = "empty-xref";
+    } else if (chain.hadFailedHop) {
+      // Some legitimate older-revision objects may be missing. A linear scan
+      // fills them in WITHOUT overwriting newer xref entries (fillFromScan
+      // respects existing keys), so the newest revision still wins.
       warnings.push({
         id: "warn:xref-partial-recovery",
         severity: "info",
@@ -111,70 +177,14 @@ export async function parsePdf(bytes: Uint8Array): Promise<ParseResult> {
           "An xref hop failed; recovering missing objects from a linear scan of indirect headers",
       });
       fillFromScan(reader, xrefEntries);
+      recovery = "partial-scan";
     }
   }
 
-  // 5. Read all in-use objects + decompress object streams
-  const objectsByOffset = await loadObjects(reader, xrefEntries, warnings);
-
-  // 6. Classify objects, build summary index
-  const objectsIndex: Record<ObjectId, PdfObjectSummary> = {};
-  for (const obj of objectsByOffset.values()) {
-    const summary = summarize(obj);
-    objectsIndex[summary.id] = summary;
-  }
-
-  // 7. Resolve document tree and pages
-  const rootTrailerDict = bodies[bodies.length - 1]?.trailer.dict ?? {};
-  const documentTree = resolveDocumentTree(rootTrailerDict, objectsByOffset);
-  const pages = enumeratePages(documentTree, objectsByOffset, warnings);
-
-  // 7.5 Walk AcroForm field tree, if any.
-  const formFields = enumerateFormFields(documentTree, objectsByOffset);
-  const signatures = formFields.filter((f) => f.fieldType === "Sig" && f.signed).length;
-
-  // 8. File info
-  const fileInfo: PdfFileInfo = {
-    byteSize: bytes.length,
-    pdfVersion: header.version,
-    encrypted: !!rootTrailerDict.Encrypt,
-    linearized: detectLinearized(reader),
-    incrementalUpdates: Math.max(0, bodies.length - 1),
-    tagged: detectTagged(documentTree, objectsByOffset),
-    acroForm: detectAcroForm(documentTree, objectsByOffset),
-    xfa: detectXfa(documentTree, objectsByOffset),
-    signatures,
-    formFields: formFields.length,
-    embeddedFiles: documentTree?.embeddedFiles?.length ?? 0,
-    hasJavaScript: detectJavaScript(documentTree, objectsByOffset),
-  };
-
-  const fileStructure: PdfFileStructure = {
-    header: { range: header.range, raw: header.raw },
-    bodies,
-    eofMarkers,
-  };
-
-  const analysis: PdfAnalysis = {
-    fileInfo,
-    fileStructure,
-    objectsIndex,
-    documentTree,
-    pages,
-    formFields,
-    warnings,
-  };
-  return { analysis, objects: objectsByOffset, reader };
+  return { header, eofMarkers, bodies, xrefEntries, recovery, warnings };
 }
 
-// =============================================================================
-// Header
-// =============================================================================
-
-function readHeader(
-  reader: ByteReader,
-  warnings: PdfWarning[],
-): { version: string; range: { start: number; end: number }; raw: string } {
+function readHeader(reader: ByteReader, warnings: PdfWarning[]): HeaderInfo {
   // Scan the first 1024 bytes for the signature; some files prefix junk.
   const scanEnd = Math.min(1024, reader.end);
   const sigIdx = reader.indexOf(HEADER_SIG, 0, scanEnd);
@@ -193,21 +203,10 @@ function readHeader(
   reader.skipWhile((b) => b !== 0x0a && b !== 0x0d);
   const verEnd = reader.pos;
   const version = asciiString(reader.subview(verStart, verEnd)).trim();
-  return {
-    version,
-    range: { start: sigIdx, end: verEnd },
-    raw: `%PDF-${version}`,
-  };
+  return { version, range: { start: sigIdx, end: verEnd }, raw: `%PDF-${version}` };
 }
 
-// =============================================================================
-// Xref chain walking
-// =============================================================================
-
-function fillFromScan(
-  reader: ByteReader,
-  entries: Map<number, PdfXrefEntry>,
-): void {
+function fillFromScan(reader: ByteReader, entries: Map<number, PdfXrefEntry>): void {
   const scanned = scanIndirectObjectHeaders(reader);
   for (const entry of scanned) {
     if (!entries.has(entry.objectNumber)) {
@@ -216,15 +215,24 @@ function fillFromScan(
   }
 }
 
+interface XrefChainResult {
+  bodies: PdfBody[];
+  entries: Map<number, PdfXrefEntry>;
+  hadFailedHop: boolean;
+  warnings: PdfWarning[];
+}
+
 async function walkXrefChain(
   reader: ByteReader,
   startOffset: number,
-  bodies: PdfBody[],
-  entries: Map<number, PdfXrefEntry>,
-  warnings: PdfWarning[],
-): Promise<void> {
+): Promise<XrefChainResult> {
+  const bodies: PdfBody[] = [];
+  const entries = new Map<number, PdfXrefEntry>();
+  const warnings: PdfWarning[] = [];
   const visited = new Set<number>();
+  let hadFailedHop = false;
   let offset: number | null = startOffset;
+
   while (offset != null && !visited.has(offset)) {
     const currentOffset = offset;
     visited.add(currentOffset);
@@ -239,26 +247,21 @@ async function walkXrefChain(
       };
       bodies.unshift(body); // oldest first
       for (const entry of parsed.xref.entries) {
-        if (!entries.has(entry.objectNumber)) {
-          entries.set(entry.objectNumber, entry);
-        }
+        if (!entries.has(entry.objectNumber)) entries.set(entry.objectNumber, entry);
       }
       warnings.push(...parsed.warnings);
 
       // Hybrid-reference files: the classic trailer may also point to a
       // supplementary cross-reference stream via /XRefStm. Per ISO 32000-2
-      // §7.5.8.4, that stream provides additional entries for the same body
-      // (typically PDF 1.5+ compressed objects added to a 1.4 base). Visit
-      // it before /Prev so its entries take effect at the same revision.
+      // §7.5.8.4, that stream provides additional entries for the same body.
+      // Visit it before /Prev so its entries take effect at the same revision.
       const xrefStmOffset = readXRefStm(parsed.trailer.dict);
       if (xrefStmOffset != null && !visited.has(xrefStmOffset)) {
         visited.add(xrefStmOffset);
         try {
           const supplementary = await readXrefAt(reader, xrefStmOffset);
           for (const entry of supplementary.xref.entries) {
-            if (!entries.has(entry.objectNumber)) {
-              entries.set(entry.objectNumber, entry);
-            }
+            if (!entries.has(entry.objectNumber)) entries.set(entry.objectNumber, entry);
           }
           warnings.push(...supplementary.warnings);
         } catch (err) {
@@ -273,6 +276,7 @@ async function walkXrefChain(
 
       offset = readPrev(parsed.trailer.dict);
     } catch (err) {
+      hadFailedHop = true;
       warnings.push({
         id: `warn:xref-failed:${currentOffset.toString(16)}`,
         severity: "error",
@@ -282,6 +286,7 @@ async function walkXrefChain(
       offset = null;
     }
   }
+  return { bodies, entries, hadFailedHop, warnings };
 }
 
 interface XrefParse {
@@ -298,8 +303,7 @@ async function readXrefAt(reader: ByteReader, offset: number): Promise<XrefParse
   if (reader.startsWith(KW_XREF)) {
     return parseXrefAndTrailer(reader, reader.pos);
   }
-  const { xref, trailer, warnings } = await parseXrefStream(reader, reader.pos);
-  return { xref, trailer, warnings };
+  return parseXrefStream(reader, reader.pos);
 }
 
 function readPrev(dict: PdfDict): number | null {
@@ -311,8 +315,22 @@ function readXRefStm(dict: PdfDict): number | null {
 }
 
 // =============================================================================
-// Object loading
+// Phase 2 — Object graph: read indirect objects + expand ObjStm + summarise
 // =============================================================================
+
+async function loadObjectGraph(
+  reader: ByteReader,
+  structure: StructureParse,
+): Promise<ObjectGraph> {
+  const warnings: PdfWarning[] = [];
+  const objects = await loadObjects(reader, structure.xrefEntries, warnings);
+  const objectsIndex: Record<ObjectId, PdfObjectSummary> = {};
+  for (const obj of objects.values()) {
+    const summary = summarize(obj);
+    objectsIndex[summary.id] = summary;
+  }
+  return { objects, objectsIndex, warnings };
+}
 
 async function loadObjects(
   reader: ByteReader,
@@ -340,17 +358,13 @@ async function loadObjects(
       }
       continue;
     }
-    if (entry.type === "compressed") {
-      compressed.push(entry);
-    }
+    if (entry.type === "compressed") compressed.push(entry);
   }
 
   // Second pass: decompress object streams referenced by compressed entries.
   // Only emit objects that the xref explicitly claims as compressed-in — an
   // ObjStm can carry stale or shadowed objects whose latest revision lives
-  // elsewhere, and we must not resurrect them silently. Build an "allowed"
-  // map (parent id → set of object numbers) from the xref, then walk each
-  // parent once and add only the matching bodies.
+  // elsewhere, and we must not resurrect them silently.
   const allowedByParent = new Map<ObjectId, Set<number>>();
   for (const entry of compressed) {
     if (!entry.compressedIn) continue;
@@ -409,10 +423,6 @@ async function loadObjects(
   return objects;
 }
 
-// =============================================================================
-// Classification & summary
-// =============================================================================
-
 function summarize(obj: IndirectObject): PdfObjectSummary {
   const kind = classify(obj);
   const hasStream = obj.value.kind === "stream";
@@ -435,9 +445,7 @@ function summarize(obj: IndirectObject): PdfObjectSummary {
 }
 
 function classify(obj: IndirectObject): PdfObjectKind {
-  if (obj.value.kind !== "dict" && obj.value.kind !== "stream") {
-    return "other";
-  }
+  if (obj.value.kind !== "dict" && obj.value.kind !== "stream") return "other";
   const dict = obj.value.kind === "dict" ? obj.value.entries : obj.value.dict;
   const typeName = expectName(dict.Type);
   const subtypeName = expectName(dict.Subtype);
@@ -492,8 +500,20 @@ function classify(obj: IndirectObject): PdfObjectKind {
 }
 
 // =============================================================================
-// Document tree & pages
+// Phase 3 — Document graph: catalog, page tree, AcroForm fields
 // =============================================================================
+
+function buildDocumentGraph(
+  objects: Map<ObjectId, IndirectObject>,
+  structure: StructureParse,
+): DocumentGraph {
+  const warnings: PdfWarning[] = [];
+  const rootTrailerDict = structure.bodies[structure.bodies.length - 1]?.trailer.dict ?? {};
+  const tree = resolveDocumentTree(rootTrailerDict, objects);
+  const pages = enumeratePages(tree, objects, warnings);
+  const formFields = enumerateFormFields(tree, objects);
+  return { tree, pages, formFields, warnings };
+}
 
 function resolveDocumentTree(
   trailerDict: PdfDict,
@@ -516,10 +536,7 @@ function resolveDocumentTree(
 
   const embeddedFiles = collectEmbeddedFiles(namesRef, objects);
 
-  const tree: PdfDocumentTree = {
-    catalogRef: rootRef,
-    pagesRootRef,
-  };
+  const tree: PdfDocumentTree = { catalogRef: rootRef, pagesRootRef };
   if (metadata) tree.metadata = metadata;
   if (info) tree.info = info;
   if (outlinesRef) tree.outlinesRef = outlinesRef;
@@ -560,18 +577,6 @@ function decodePdfString(value: PdfValue): string | undefined {
   return asciiString(value.raw);
 }
 
-function enumeratePages(
-  tree: PdfDocumentTree | undefined,
-  objects: Map<ObjectId, IndirectObject>,
-  warnings: PdfWarning[],
-): PdfPageSummary[] {
-  if (!tree) return [];
-  const pages: PdfPageSummary[] = [];
-  const visited = new Set<ObjectId>();
-  walkPages(tree.pagesRootRef, objects, pages, visited, warnings, {});
-  return pages;
-}
-
 /**
  * Attributes that descend through the page tree (ISO 32000-2 §7.7.3.4).
  *
@@ -584,26 +589,46 @@ function enumeratePages(
  * ancestor /Pages nodes propagate to descendant /Page leaves.
  */
 interface InheritedPageAttrs {
-  mediaBox?: PdfPageSummary["boxes"]["mediaBox"];
-  cropBox?: PdfPageSummary["boxes"]["mediaBox"];
+  mediaBox?: PdfRect;
+  cropBox?: PdfRect;
   rotate?: number;
   resourceRef?: ObjectId;
   resourceDict?: PdfDict;
 }
 
+interface WalkPagesContext {
+  objects: Map<ObjectId, IndirectObject>;
+  pages: PdfPageSummary[];
+  visited: Set<ObjectId>;
+  warnings: PdfWarning[];
+}
+
+function enumeratePages(
+  tree: PdfDocumentTree | undefined,
+  objects: Map<ObjectId, IndirectObject>,
+  warnings: PdfWarning[],
+): PdfPageSummary[] {
+  if (!tree) return [];
+  const ctx: WalkPagesContext = {
+    objects,
+    pages: [],
+    visited: new Set<ObjectId>(),
+    warnings,
+  };
+  walkPages(tree.pagesRootRef, ctx, {});
+  return ctx.pages;
+}
+
 function walkPages(
   ref: ObjectId,
-  objects: Map<ObjectId, IndirectObject>,
-  pages: PdfPageSummary[],
-  visited: Set<ObjectId>,
-  warnings: PdfWarning[],
+  ctx: WalkPagesContext,
   inherited: InheritedPageAttrs,
 ): void {
-  if (visited.has(ref)) return;
-  visited.add(ref);
-  const obj = objects.get(ref);
+  if (ctx.visited.has(ref)) return;
+  ctx.visited.add(ref);
+  const obj = ctx.objects.get(ref);
   if (!obj) {
-    warnings.push({
+    ctx.warnings.push({
       id: `warn:pages-missing:${ref}`,
       severity: "warn",
       category: "structure",
@@ -620,12 +645,12 @@ function walkPages(
     const kids = expectArray(dict.Kids) ?? [];
     for (const kid of kids) {
       const childRef = expectRef(kid);
-      if (childRef) walkPages(childRef, objects, pages, visited, warnings, next);
+      if (childRef) walkPages(childRef, ctx, next);
     }
     return;
   }
   if (typeName === "Page") {
-    pages.push(buildPageSummary(pages.length + 1, ref, dict, next));
+    ctx.pages.push(buildPageSummary(ctx.pages.length + 1, ref, dict, next));
   }
 }
 
@@ -690,14 +715,23 @@ function buildPageSummary(
   return summary;
 }
 
-function readRect(value: PdfValue | undefined): PdfPageSummary["boxes"]["mediaBox"] | undefined {
+/**
+ * Parse a /MediaBox-shaped array. Returns undefined when the array is
+ * malformed (wrong length, non-numeric elements) — silently potting bad
+ * elements down to 0 would surface a "valid" box at the origin, which
+ * masks data corruption instead of escalating it.
+ */
+function readRect(value: PdfValue | undefined): PdfRect | undefined {
   const arr = expectArray(value);
   if (!arr || arr.length < 4) return undefined;
-  const nums = arr.map((v) => (v.kind === "int" ? v.value : v.kind === "real" ? v.value : 0));
-  const llx = nums[0] ?? 0;
-  const lly = nums[1] ?? 0;
-  const urx = nums[2] ?? 0;
-  const ury = nums[3] ?? 0;
+  const nums: number[] = [];
+  for (let i = 0; i < 4; i++) {
+    const v = arr[i];
+    if (!v) return undefined;
+    if (v.kind === "int" || v.kind === "real") nums.push(v.value);
+    else return undefined;
+  }
+  const [llx, lly, urx, ury] = nums as [number, number, number, number];
   return { x: llx, y: lly, w: urx - llx, h: ury - lly };
 }
 
@@ -717,10 +751,6 @@ function normalizeRotation(r: number): 0 | 90 | 180 | 270 {
   if (v === 90 || v === 180 || v === 270) return v;
   return 0;
 }
-
-// =============================================================================
-// File-level feature detection
-// =============================================================================
 
 function enumerateFormFields(
   tree: PdfDocumentTree | undefined,
@@ -791,6 +821,37 @@ function readString(value: PdfValue | undefined): string | undefined {
 function pickFieldType(name: string | undefined): PdfFormFieldType {
   if (name === "Tx" || name === "Btn" || name === "Ch" || name === "Sig") return name;
   return "Unknown";
+}
+
+// =============================================================================
+// Phase 4 — File-level feature detection
+// =============================================================================
+
+function collectFileInfo(
+  reader: ByteReader,
+  bytes: Uint8Array,
+  structure: StructureParse,
+  documents: DocumentGraph,
+  objects: Map<ObjectId, IndirectObject>,
+): PdfFileInfo {
+  const rootTrailerDict = structure.bodies[structure.bodies.length - 1]?.trailer.dict ?? {};
+  const signatures = documents.formFields.filter(
+    (f) => f.fieldType === "Sig" && f.signed,
+  ).length;
+  return {
+    byteSize: bytes.length,
+    pdfVersion: structure.header.version,
+    encrypted: !!rootTrailerDict.Encrypt,
+    linearized: detectLinearized(reader),
+    incrementalUpdates: Math.max(0, structure.bodies.length - 1),
+    tagged: detectTagged(documents.tree, objects),
+    acroForm: detectAcroForm(documents.tree, objects),
+    xfa: detectXfa(documents.tree, objects),
+    signatures,
+    formFields: documents.formFields.length,
+    embeddedFiles: documents.tree?.embeddedFiles?.length ?? 0,
+    hasJavaScript: detectJavaScript(documents.tree, objects),
+  };
 }
 
 function detectLinearized(reader: ByteReader): boolean {
