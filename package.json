@@ -7,8 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:pages": "tsc -b && vite build --outDir docs --emptyOutDir=false",
     "preview": "vite preview",
-    "deploy": "pnpm build && wrangler pages deploy dist --project-name pnake",
     "typecheck": "tsc -b --noEmit",
     "format": "oxfmt --write src tests",
     "format:check": "oxfmt --check src tests",
@@ -50,8 +50,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.3",
     "vite": "^8.0.12",
-    "vitest": "^4.1.6",
-    "wrangler": "^4.90.1"
+    "vitest": "^4.1.6"
   },
   "packageManager": "pnpm@9.15.4"
 }
