@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:pages": "BUILD_FOR_PAGES=1 tsc -b && BUILD_FOR_PAGES=1 vite build --outDir docs --emptyOutDir=false",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "format": "oxfmt --write src tests",
