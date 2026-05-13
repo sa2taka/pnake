@@ -152,6 +152,10 @@ export function appReducer(state: AppState, action: Action): AppState {
     case "setBottomOpen":
       return { ...state, bottomOpen: action.open };
     case "setCurrentPage":
+      // Reset pageOps to "idle" — this is the explicit signal the
+      // page-operations effect waits for. Without resetting, the effect
+      // would see the previous page's result still in pageOps and skip
+      // the new fetch.
       return {
         ...state,
         currentPage: action.pageNumber,
