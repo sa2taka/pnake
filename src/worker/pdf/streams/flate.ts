@@ -66,9 +66,7 @@ export async function flateDecode(
   return decompressed;
 }
 
-// =============================================================================
-// PNG predictor (Predictor 10..15 in PDF, PNG filter types 0..4)
-// =============================================================================
+// ---- PNG predictor (Predictor 10..15 in PDF, PNG filter types 0..4) ----
 
 export function pngPredictor(input: Uint8Array, parms: FlateDecodeParms): Uint8Array {
   const colors = Math.max(1, parms.colors);
@@ -127,9 +125,7 @@ function paeth(a: number, b: number, c: number): number {
   return c;
 }
 
-// =============================================================================
-// TIFF predictor 2 (component-wise additive)
-// =============================================================================
+// ---- TIFF predictor 2 (component-wise additive) ----
 
 export class UnsupportedPredictorError extends Error {
   readonly name = "UnsupportedPredictorError";

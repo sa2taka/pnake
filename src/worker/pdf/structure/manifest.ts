@@ -56,9 +56,7 @@ export interface ParseResult {
   reader: ByteReader;
 }
 
-// =============================================================================
-// Phase result shapes (intermediate, not part of the public IR)
-// =============================================================================
+// Intermediate per-phase shapes; not part of the public IR.
 
 interface HeaderInfo {
   version: string;
@@ -95,9 +93,6 @@ interface DocumentGraph {
   warnings: PdfWarning[];
 }
 
-// =============================================================================
-// Orchestrator
-// =============================================================================
 
 export async function buildManifest(bytes: Uint8Array): Promise<PdfAnalysis> {
   return (await parsePdf(bytes)).analysis;
@@ -126,9 +121,7 @@ export async function parsePdf(bytes: Uint8Array): Promise<ParseResult> {
   return { analysis, objects: graph.objects, reader };
 }
 
-// =============================================================================
-// Phase 1 — Structure: header / EOF / xref chain
-// =============================================================================
+// ---------- parseStructure: header / EOF / xref chain ----------
 
 async function parseStructure(reader: ByteReader): Promise<StructureParse> {
   const warnings: PdfWarning[] = [];
@@ -240,7 +233,10 @@ async function walkXrefChain(
       const parsed = await readXrefAt(reader, currentOffset);
       const body: PdfBody = {
         index: bodies.length,
-        range: { start: 0, end: 0 }, // approximate; not load-bearing for Phase 1
+        // PdfBody.range needs the real body span; we'd compute it from the
+        // distance between consecutive startxref offsets, but the current UI
+        // doesn't use it, so we punt with a zero range until it does.
+        range: { start: 0, end: 0 },
         xref: parsed.xref,
         trailer: parsed.trailer,
         startxrefOffset: currentOffset,
@@ -314,9 +310,7 @@ function readXRefStm(dict: PdfDict): number | null {
   return expectInt(dict["XRefStm"]) ?? null;
 }
 
-// =============================================================================
-// Phase 2 — Object graph: read indirect objects + expand ObjStm + summarise
-// =============================================================================
+// ---------- loadObjectGraph: indirect objects + ObjStm expansion + summaries ----------
 
 async function loadObjectGraph(
   reader: ByteReader,
@@ -499,9 +493,7 @@ function classify(obj: IndirectObject): PdfObjectKind {
   }
 }
 
-// =============================================================================
-// Phase 3 — Document graph: catalog, page tree, AcroForm fields
-// =============================================================================
+// ---------- buildDocumentGraph: catalog / page tree / AcroForm fields ----------
 
 function buildDocumentGraph(
   objects: Map<ObjectId, IndirectObject>,
@@ -823,9 +815,7 @@ function pickFieldType(name: string | undefined): PdfFormFieldType {
   return "Unknown";
 }
 
-// =============================================================================
-// Phase 4 — File-level feature detection
-// =============================================================================
+// ---------- collectFileInfo: encryption / linearization / tagged / xfa / js flags ----------
 
 function collectFileInfo(
   reader: ByteReader,
@@ -897,5 +887,4 @@ function detectJavaScript(
   return !!names.value.entries.JavaScript;
 }
 
-// Re-export so call sites can use the same helpers.
 export { parseObjectId };

@@ -262,10 +262,6 @@ export class ParserSession {
   }
 }
 
-// =============================================================================
-// Helpers
-// =============================================================================
-
 /** Strip stream bytes from a PdfValue so the structured-clone payload is small. */
 function stripStreamBytes(value: PdfValue): PdfValue {
   if (value.kind === "stream") {

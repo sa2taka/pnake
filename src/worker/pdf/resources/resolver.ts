@@ -76,9 +76,7 @@ function collectPropertiesDicts(
   return out;
 }
 
-// =============================================================================
-// Resource dictionary lookup
-// =============================================================================
+// ---- Resource dictionary lookup ----
 
 function readResourceDict(
   ref: ObjectId | undefined,
@@ -105,9 +103,7 @@ function resolveDict(
   return undefined;
 }
 
-// =============================================================================
-// Fonts
-// =============================================================================
+// ---- Fonts ----
 
 function collectFonts(
   value: PdfValue | undefined,
@@ -211,9 +207,7 @@ function detectEmbeddedFont(
   return false;
 }
 
-// =============================================================================
-// XObjects
-// =============================================================================
+// ---- XObjects ----
 
 function collectXObjects(
   value: PdfValue | undefined,
@@ -292,9 +286,7 @@ function pickXObjectSubtype(name: string | undefined): PdfXObjectResource["subty
   return "Unknown";
 }
 
-// =============================================================================
-// Generic ref maps for ExtGState / ColorSpace / Pattern / Shading
-// =============================================================================
+// ---- Generic ref maps for ExtGState / ColorSpace / Pattern / Shading ----
 
 function collectRefMap(
   value: PdfValue | undefined,
@@ -316,6 +308,5 @@ function collectProcSet(value: PdfValue | undefined): string[] {
   return arr.flatMap((v) => (v.kind === "name" ? [v.value] : []));
 }
 
-// Helpers re-exported so callers can reuse them when displaying details.
 export { expectInt, expectName, expectRef, expectArray, extractFilters };
 export type { PdfFilter };

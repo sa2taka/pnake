@@ -135,9 +135,7 @@ export function parseXrefAndTrailer(reader: ByteReader, offset: number): XrefAnd
   return { xref, trailer, warnings };
 }
 
-// =============================================================================
-// Helpers
-// =============================================================================
+// ---- Helpers ----
 
 function parseXrefEntry(
   slice: Uint8Array,
@@ -181,9 +179,7 @@ function warningId(label: string, offset: number): string {
   return `warn:${label}:${offset.toString(16)}`;
 }
 
-// =============================================================================
-// startxref / EOF locator
-// =============================================================================
+// ---- startxref / EOF locator ----
 
 const KW_STARTXREF = toBytes("startxref");
 const KW_EOF = toBytes("%%EOF");

@@ -152,5 +152,4 @@ function readBE(buf: Uint8Array, offset: number, width: number): number {
   return acc >>> 0;
 }
 
-// re-export helpers for callers that resolve /Prev chains
 export { expectInt };

@@ -164,9 +164,7 @@ export function buildVisualElements(
   return { elements, warnings };
 }
 
-// =============================================================================
-// Helpers
-// =============================================================================
+// ---- Helpers ----
 
 function textBBox(
   state: ReturnType<GraphicsStateSimulator["state"]>,

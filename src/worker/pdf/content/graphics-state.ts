@@ -68,9 +68,7 @@ export function defaultTextState(): TextState {
   };
 }
 
-// =============================================================================
-// Matrix math
-// =============================================================================
+// ---- Matrix math ----
 
 export function multiply(a: Matrix, b: Matrix): Matrix {
   return [
@@ -87,9 +85,7 @@ export function applyMatrix(m: Matrix, x: number, y: number): { x: number; y: nu
   return { x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] };
 }
 
-// =============================================================================
-// Walker
-// =============================================================================
+// ---- Walker ----
 
 export interface OperationContext {
   operation: PdfOperation;
@@ -272,9 +268,7 @@ export class GraphicsStateSimulator {
   }
 }
 
-// =============================================================================
-// Helpers
-// =============================================================================
+// ---- Helpers ----
 
 function numericOperand(value: PdfValue | undefined): number | undefined {
   if (!value) return undefined;

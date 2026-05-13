@@ -263,5 +263,4 @@ function looksLikeOperatorStart(b: number): boolean {
   );
 }
 
-// Re-export ascii helper so tests can reuse it.
 export { asciiString };

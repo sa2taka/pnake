@@ -20,10 +20,6 @@ import type {
   PdfWarning,
 } from "./ir-types";
 
-// =============================================================================
-// Result payloads (exported by name for callers)
-// =============================================================================
-
 export type LoadResult = {
   analysis: PdfAnalysis;
   structTree?: PdfStructTree;
@@ -43,10 +39,7 @@ export type PageOperationsResult = {
   visualElements: PdfVisualElement[];
 };
 
-// =============================================================================
-// Method map — single source of truth for request/response shape
-// =============================================================================
-
+// Method map — single source of truth for request / response shape.
 export interface RpcMethods {
   ping: { params: { payload?: unknown }; result: unknown };
   load: { params: { bytes: ArrayBuffer; fileName?: string }; result: LoadResult };
@@ -65,10 +58,7 @@ export type RpcMethod = keyof RpcMethods;
 export type RpcParams<M extends RpcMethod> = RpcMethods[M]["params"];
 export type RpcResult<M extends RpcMethod> = RpcMethods[M]["result"];
 
-// =============================================================================
-// Wire envelopes (derived from RpcMethods)
-// =============================================================================
-
+// Wire envelopes (derived).
 type RpcRequest = {
   [K in RpcMethod]: { id: number; type: K } & RpcParams<K>;
 }[RpcMethod];
@@ -94,10 +84,6 @@ export interface WorkerError {
 export type WorkerErrorResponse = { id: number; ok: false; error: WorkerError };
 
 export type WorkerResponse = RpcSuccess | WorkerErrorResponse;
-
-// =============================================================================
-// Error serialization
-// =============================================================================
 
 export function serializeError(err: unknown): WorkerError {
   if (err instanceof Error) {

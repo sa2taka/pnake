@@ -135,9 +135,7 @@ export class ByteReader {
   }
 }
 
-// =============================================================================
-// Byte / character classification (per ISO 32000-2 §7.2.3 / §7.5.x)
-// =============================================================================
+// ---- Byte / character classification (ISO 32000-2 §7.2.3 / §7.5.x) ----
 
 const WHITESPACE = new Set([0x00, 0x09, 0x0a, 0x0c, 0x0d, 0x20]);
 const EOL = new Set([0x0a, 0x0d]);
@@ -186,9 +184,7 @@ export function isHex(b: number): boolean {
   );
 }
 
-// =============================================================================
-// Encoding helpers
-// =============================================================================
+// ---- Encoding helpers ----
 
 export function toBytes(input: string): Uint8Array {
   // Latin-1 / one-byte-per-codepoint encoding. PDF lexical syntax is ASCII.

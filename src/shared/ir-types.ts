@@ -32,9 +32,7 @@ export interface PdfRect {
 
 export type Matrix = [number, number, number, number, number, number];
 
-// =============================================================================
-// Value graph (COS objects)
-// =============================================================================
+// ---- Value graph (COS objects) ----
 
 export type PdfFilter =
   | "FlateDecode"
@@ -77,9 +75,7 @@ export type PdfValue =
 
 export type PdfDict = Record<string, PdfValue>;
 
-// =============================================================================
-// File structure
-// =============================================================================
+// ---- File structure ----
 
 export interface PdfFileInfo {
   byteSize: number;
@@ -140,9 +136,7 @@ export interface PdfFileStructure {
   eofMarkers: ByteRange[];
 }
 
-// =============================================================================
-// Object graph
-// =============================================================================
+// ---- Object graph ----
 
 export type PdfObjectKind =
   | "catalog"
@@ -187,9 +181,7 @@ export interface PdfObjectDetail extends PdfObjectSummary {
   rawText: string;
 }
 
-// =============================================================================
-// Document graph
-// =============================================================================
+// ---- Document graph ----
 
 export interface PdfDocumentTree {
   catalogRef: ObjectId;
@@ -203,9 +195,7 @@ export interface PdfDocumentTree {
   embeddedFiles?: { name: string; objectRef: ObjectId }[];
 }
 
-// =============================================================================
-// Pages
-// =============================================================================
+// ---- Pages ----
 
 export interface PdfPageBoxes {
   mediaBox: PdfRect;
@@ -233,9 +223,7 @@ export interface PdfPageSummary {
   annotationRefs: ObjectId[];
 }
 
-// =============================================================================
-// Resources
-// =============================================================================
+// ---- Resources ----
 
 export interface PdfFontResource {
   objectRef: ObjectId;
@@ -275,9 +263,7 @@ export interface PdfResolvedResources {
   procSets: string[];
 }
 
-// =============================================================================
-// Content stream operations
-// =============================================================================
+// ---- Content stream operations ----
 
 export type PdfOpCategory =
   | "graphics-state"
@@ -310,9 +296,7 @@ export interface PdfOperation {
   mcid?: number;
 }
 
-// =============================================================================
-// Logical structure (tagged PDF)
-// =============================================================================
+// ---- Logical structure (tagged PDF) ----
 
 export interface PdfStructTreeNode {
   id: string;
@@ -334,9 +318,7 @@ export interface PdfStructTree {
   root: PdfStructTreeNode;
 }
 
-// =============================================================================
-// Visual elements (overlay-bound)
-// =============================================================================
+// ---- Visual elements (overlay-bound) ----
 
 export interface PdfVisualElement {
   id: string;
@@ -347,9 +329,7 @@ export interface PdfVisualElement {
   preview?: string;
 }
 
-// =============================================================================
-// Warnings
-// =============================================================================
+// ---- Warnings ----
 
 export interface PdfWarning {
   id: string;
@@ -371,9 +351,7 @@ export interface PdfWarning {
   relatedNodeIds?: string[];
 }
 
-// =============================================================================
-// Top-level analysis manifest
-// =============================================================================
+// ---- Top-level analysis manifest ----
 
 export interface PdfAnalysis {
   fileInfo: PdfFileInfo;
@@ -385,9 +363,7 @@ export interface PdfAnalysis {
   warnings: PdfWarning[];
 }
 
-// =============================================================================
-// ID helpers
-// =============================================================================
+// ---- ID helpers ----
 
 export function objectId(num: number, gen: number): ObjectId {
   return `obj:${num}:${gen}`;
@@ -407,10 +383,8 @@ export function operationId(pageNumber: number, sequence: number): OperationId {
   return `page:${pageNumber}:op:${sequence}`;
 }
 
-// =============================================================================
-// Type predicates — narrow an untrusted string back into a specific id variant.
-// Cheaper than parsing into a struct when callers only need the discriminator.
-// =============================================================================
+// Type predicates — narrow an untrusted string back into a specific id
+// variant. Cheaper than parseObjectId when callers only need the discriminator.
 
 export function isObjectId(id: string): id is ObjectId {
   return /^obj:\d+:\d+$/.test(id);

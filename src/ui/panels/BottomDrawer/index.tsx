@@ -41,7 +41,7 @@ export function BottomDrawer(): JSX.Element {
         {tab === "raw" || tab === "decoded" ? (
           <StreamPreview tab={tab} parser={parser} selectedId={state.selectedNodeId} />
         ) : (
-          <p className="bottomdrawer-empty">Available after Phase 2/3.</p>
+          <p className="bottomdrawer-empty">Not implemented yet.</p>
         )}
       </div>
     </div>

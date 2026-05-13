@@ -174,10 +174,6 @@ export function explainOperator(op: PdfOperation): OperatorExplanation {
   };
 }
 
-// =============================================================================
-// Formatting helpers
-// =============================================================================
-
 function formatNumber(value: PdfValue | undefined): string {
   if (!value) return "?";
   if (value.kind === "int" || value.kind === "real") return String(value.value);

@@ -199,9 +199,7 @@ function parseBfrange(
   }
 }
 
-// =============================================================================
-// Apply a CMap to decode a glyph-encoded string
-// =============================================================================
+// ---- Apply a CMap to decode a glyph-encoded string ----
 
 export function decodeWithCMap(
   cmap: ToUnicodeCMap,
@@ -253,9 +251,7 @@ function codespaceWidthFor(
   return undefined;
 }
 
-// =============================================================================
-// Helpers
-// =============================================================================
+// ---- Helpers ----
 
 function readBigEndian(bytes: Uint8Array): number {
   let acc = 0;
@@ -275,5 +271,4 @@ function decodeUtf16BE(bytes: Uint8Array): string {
   return String.fromCharCode(...utf16Codes(bytes));
 }
 
-// Re-export for the value parser side.
 export { asciiString };

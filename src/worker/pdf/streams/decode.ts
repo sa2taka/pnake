@@ -62,9 +62,7 @@ export async function decodeStream(
   return current;
 }
 
-// =============================================================================
-// Cheap text filters needed even on first contact
-// =============================================================================
+// ---- Cheap text filters needed even on first contact ----
 
 function asciiHexDecode(input: Uint8Array): Uint8Array {
   const nibbles: number[] = [];

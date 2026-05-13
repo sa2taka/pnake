@@ -153,9 +153,7 @@ export class ValueParser {
   }
 }
 
-// =============================================================================
-// Helpers for downstream code
-// =============================================================================
+// ---- Helpers for downstream code ----
 
 export function expectInt(value: PdfValue | undefined): number | undefined {
   if (!value) return undefined;

@@ -39,10 +39,6 @@ export type BottomTab = "raw" | "decoded" | "trace" | "graphics-state";
 
 export type SelectionOrigin = "tree" | "overlay" | "trace" | "detail" | "search";
 
-// =============================================================================
-// State shape — nested discriminated unions
-// =============================================================================
-
 export type DocumentState =
   | { status: "idle" }
   | { status: "loading"; fileName?: string }
@@ -198,24 +194,10 @@ function firstSelectableId(analysis: PdfAnalysis): string | undefined {
   return analysis.documentTree?.catalogRef ?? Object.keys(analysis.objectsIndex)[0];
 }
 
-// =============================================================================
-// Context
-// =============================================================================
-//
-// We split the runtime values across three separate contexts so consumers
-// rerender only on the cadence they actually care about.
-//
-//   - StateContext: changes on every reducer dispatch (page changes,
-//     selections, load progress). Consumers that read state belong here.
-//   - DispatchContext: stable reference for the lifetime of the provider.
-//     Components that only dispatch (Toolbar, buttons) do not need to
-//     rerender on state changes.
-//   - ParserContext: stable across all state changes; only flips when
-//     the underlying ParserService is created / disposed.
-//
-// `useApp()` is preserved as a convenience hook that joins all three for
-// callers that genuinely need everything. Prefer `useAppState`,
-// `useAppDispatch`, `useParser` when only one slice is needed.
+// State, Dispatch, Parser are three separate contexts so consumers rerender
+// only on the cadence they care about (state changes on every dispatch;
+// dispatch and parser are stable). useApp() joins all three for the rare
+// caller that needs everything; otherwise prefer the slice-specific hooks.
 
 interface AppContextValue {
   state: AppState;

@@ -270,5 +270,4 @@ function consumeKeyword(reader: ByteReader, keyword: Uint8Array): ByteRange | nu
   return { start, end: reader.pos };
 }
 
-// Re-export so the search above stays import-stable.
 export { KW_OBJ, KW_ENDOBJ, KW_STREAM, KW_ENDSTREAM };
