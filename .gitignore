@@ -35,3 +35,4 @@ pnpm-debug.log*
 
 # tooling
 .claude/*.lock
+.wrangler/
