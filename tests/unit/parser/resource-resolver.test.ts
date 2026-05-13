@@ -15,13 +15,11 @@ function toValue(v: unknown): IndirectObject["value"] {
   if (typeof v === "string" && v.startsWith("/")) {
     return { kind: "name", value: v.slice(1) };
   }
-  if (typeof v === "string" && /^obj:/.test(v)) {
+  if (typeof v === "string" && v.startsWith("obj:")) {
     return { kind: "ref", target: v as ObjectId };
   }
   if (typeof v === "number") {
-    return Number.isInteger(v)
-      ? { kind: "int", value: v }
-      : { kind: "real", value: v };
+    return Number.isInteger(v) ? { kind: "int", value: v } : { kind: "real", value: v };
   }
   if (Array.isArray(v)) {
     return { kind: "array", items: v.map(toValue) };

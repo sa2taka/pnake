@@ -10,7 +10,7 @@ import "./Shell.css";
 
 const STORAGE_KEY = "pnake.layout";
 
-interface LayoutState {
+type LayoutState = {
   leftW: number;
   rightW: number;
   bottomH: number;
@@ -19,7 +19,10 @@ interface LayoutState {
 function loadLayout(): LayoutState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...defaultLayout, ...JSON.parse(raw) };
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<LayoutState>;
+      return { ...defaultLayout, ...parsed };
+    }
   } catch {
     // ignore corrupted layout state
   }
@@ -40,7 +43,7 @@ function saveLayout(layout: LayoutState): void {
   }
 }
 
-export function Shell(): JSX.Element {
+export function Shell(): React.JSX.Element {
   const { state, dispatch } = useApp();
   const [layout, setLayout] = useState<LayoutState>(loadLayout);
   const bottomOpen = state.bottomOpen;
@@ -75,9 +78,7 @@ export function Shell(): JSX.Element {
       </div>
       <Splitter
         orientation="vertical"
-        onDrag={(delta) =>
-          update({ leftW: Math.max(180, Math.min(600, layout.leftW + delta)) })
-        }
+        onDrag={(delta) => update({ leftW: Math.max(180, Math.min(600, layout.leftW + delta)) })}
         onDoubleClick={() => update({ leftW: defaultLayout.leftW })}
       />
       <div className="shell-render">
@@ -85,9 +86,7 @@ export function Shell(): JSX.Element {
       </div>
       <Splitter
         orientation="vertical"
-        onDrag={(delta) =>
-          update({ rightW: Math.max(220, Math.min(640, layout.rightW - delta)) })
-        }
+        onDrag={(delta) => update({ rightW: Math.max(220, Math.min(640, layout.rightW - delta)) })}
         onDoubleClick={() => update({ rightW: defaultLayout.rightW })}
       />
       <div className="shell-detail">
@@ -117,7 +116,7 @@ export function Shell(): JSX.Element {
   );
 }
 
-function StatusBar(): JSX.Element {
+function StatusBar(): React.JSX.Element {
   const { state } = useApp();
   const a = state.document.status === "loaded" ? state.document.analysis : undefined;
   return (
@@ -125,18 +124,14 @@ function StatusBar(): JSX.Element {
       <span className="statusbar-segment">pnake</span>
       {a ? (
         <>
-          <span className="statusbar-segment statusbar-muted">
-            v{a.fileInfo.pdfVersion}
-          </span>
+          <span className="statusbar-segment statusbar-muted">v{a.fileInfo.pdfVersion}</span>
           <span className="statusbar-segment statusbar-muted">
             {formatBytes(a.fileInfo.byteSize)}
           </span>
           <span className="statusbar-segment statusbar-muted">
             {Object.keys(a.objectsIndex).length} objs / {a.pages.length} pages
           </span>
-          {a.fileInfo.tagged && (
-            <span className="statusbar-segment statusbar-muted">tagged</span>
-          )}
+          {a.fileInfo.tagged && <span className="statusbar-segment statusbar-muted">tagged</span>}
           {a.fileInfo.formFields > 0 && (
             <span className="statusbar-segment statusbar-muted">
               {a.fileInfo.formFields} fields
@@ -144,9 +139,7 @@ function StatusBar(): JSX.Element {
             </span>
           )}
           {a.warnings.length > 0 && (
-            <span className="statusbar-segment statusbar-warning">
-              ⚠ {a.warnings.length}
-            </span>
+            <span className="statusbar-segment statusbar-warning">⚠ {a.warnings.length}</span>
           )}
         </>
       ) : (

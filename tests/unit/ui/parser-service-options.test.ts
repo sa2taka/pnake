@@ -30,9 +30,9 @@ describe("ParserService CallOptions", () => {
     const parser = new InProcessParserService();
     const ac = new AbortController();
     ac.abort();
-    await expect(
-      parser.load(tinyPdf(), "tiny.pdf", { signal: ac.signal }),
-    ).rejects.toMatchObject({ name: "AbortError" });
+    await expect(parser.load(tinyPdf(), "tiny.pdf", { signal: ac.signal })).rejects.toMatchObject({
+      name: "AbortError",
+    });
   });
 
   it("InProcess getObjectDetail() rejects on aborted signal without running", async () => {
@@ -40,9 +40,9 @@ describe("ParserService CallOptions", () => {
     await parser.load(tinyPdf());
     const ac = new AbortController();
     ac.abort();
-    await expect(
-      parser.getObjectDetail("obj:1:0", { signal: ac.signal }),
-    ).rejects.toMatchObject({ name: "AbortError" });
+    await expect(parser.getObjectDetail("obj:1:0", { signal: ac.signal })).rejects.toMatchObject({
+      name: "AbortError",
+    });
   });
 
   it("InProcess accepts an empty options bag (no signal)", async () => {

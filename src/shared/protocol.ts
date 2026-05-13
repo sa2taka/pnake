@@ -23,13 +23,13 @@ import type {
 export type LoadResult = {
   analysis: PdfAnalysis;
   structTree?: PdfStructTree;
-};
+}
 
 export type StreamResult = {
   bytes: ArrayBuffer;
   decoded: boolean;
   truncated: boolean;
-};
+}
 
 export type PageOperationsResult = {
   pageNumber: number;
@@ -37,10 +37,10 @@ export type PageOperationsResult = {
   warnings: PdfWarning[];
   resources: PdfResolvedResources;
   visualElements: PdfVisualElement[];
-};
+}
 
 // Method map — single source of truth for request / response shape.
-export interface RpcMethods {
+export type RpcMethods = {
   ping: { params: { payload?: unknown }; result: unknown };
   load: { params: { bytes: ArrayBuffer; fileName?: string }; result: LoadResult };
   getObjectDetail: { params: { objectId: ObjectId }; result: PdfObjectDetail };
@@ -67,7 +67,7 @@ type RpcRequest = {
  * Out-of-band cancellation message. Not part of RpcMethods because it
  * targets another request by id rather than returning its own result.
  */
-export type CancelRequest = { id: number; type: "cancel"; targetId: number };
+export type CancelRequest = { id: number; type: "cancel"; targetId: number }
 
 export type WorkerRequest = RpcRequest | CancelRequest;
 
@@ -75,13 +75,13 @@ type RpcSuccess = {
   [K in RpcMethod]: { id: number; ok: true; type: K; result: RpcResult<K> };
 }[RpcMethod];
 
-export interface WorkerError {
+export type WorkerError = {
   name: string;
   message: string;
   stack?: string;
 }
 
-export type WorkerErrorResponse = { id: number; ok: false; error: WorkerError };
+export type WorkerErrorResponse = { id: number; ok: false; error: WorkerError }
 
 export type WorkerResponse = RpcSuccess | WorkerErrorResponse;
 

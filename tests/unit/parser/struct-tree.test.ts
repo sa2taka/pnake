@@ -22,9 +22,7 @@ function str(s: string): PdfValue {
   return { kind: "string", raw: new TextEncoder().encode(s) };
 }
 
-function makeObjects(
-  map: Record<string, PdfValue>,
-): Map<ObjectId, IndirectObject> {
+function makeObjects(map: Record<string, PdfValue>): Map<ObjectId, IndirectObject> {
   const out = new Map<ObjectId, IndirectObject>();
   for (const [id, value] of Object.entries(map)) {
     const m = /^obj:(\d+):(\d+)$/.exec(id);

@@ -107,7 +107,11 @@ export class ByteReader {
    * Find the next occurrence of `seq` in `[searchStart, searchEnd)`.
    * Returns -1 if absent. Does not move the cursor.
    */
-  indexOf(seq: Uint8Array | string, searchStart = this.cursor, searchEnd = this.bytes.length): number {
+  indexOf(
+    seq: Uint8Array | string,
+    searchStart = this.cursor,
+    searchEnd = this.bytes.length,
+  ): number {
     const target = typeof seq === "string" ? toBytes(seq) : seq;
     if (target.length === 0) return searchStart;
     const last = Math.min(searchEnd, this.bytes.length) - target.length;
@@ -177,11 +181,7 @@ export function isOctal(b: number): boolean {
 }
 
 export function isHex(b: number): boolean {
-  return (
-    (b >= 0x30 && b <= 0x39) ||
-    (b >= 0x41 && b <= 0x46) ||
-    (b >= 0x61 && b <= 0x66)
-  );
+  return (b >= 0x30 && b <= 0x39) || (b >= 0x41 && b <= 0x46) || (b >= 0x61 && b <= 0x66);
 }
 
 // ---- Encoding helpers ----
@@ -195,6 +195,6 @@ export function toBytes(input: string): Uint8Array {
 
 export function asciiString(bytes: Uint8Array): string {
   let out = "";
-  for (let i = 0; i < bytes.length; i++) out += String.fromCharCode(bytes[i] ?? 0);
+  for (const b of bytes) out += String.fromCharCode(b);
   return out;
 }

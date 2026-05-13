@@ -1,9 +1,8 @@
 import { useApp } from "../../state/AppContext";
 
-export function FileStructureView(): JSX.Element {
+export function FileStructureView(): React.JSX.Element {
   const { state, dispatch } = useApp();
-  const fs =
-    state.document.status === "loaded" ? state.document.analysis.fileStructure : undefined;
+  const fs = state.document.status === "loaded" ? state.document.analysis.fileStructure : undefined;
   if (!fs) return <div className="treepanel-empty">No file structure</div>;
 
   return (

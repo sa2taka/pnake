@@ -16,40 +16,34 @@
  *     so rapid page changes don't paint stale frames.
  */
 
-import type {
-  PDFDocumentProxy,
-  PDFPageProxy,
-  RenderTask,
-} from "pdfjs-dist/types/src/display/api";
+import type * as Pdfjs from "pdfjs-dist";
+import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist/types/src/display/api";
 
 let workerConfigured = false;
 
 async function ensureWorker(): Promise<void> {
   if (workerConfigured) return;
   const lib = await import("pdfjs-dist");
-  const workerUrl = new URL(
-    "pdfjs-dist/build/pdf.worker.min.mjs",
-    import.meta.url,
-  );
+  const workerUrl = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url);
   lib.GlobalWorkerOptions.workerSrc = workerUrl.toString();
   workerConfigured = true;
 }
 
-interface CachedDoc {
+type CachedDoc = {
   fingerprint: string;
   doc: PDFDocumentProxy;
 }
 let cached: CachedDoc | null = null;
 let cacheReplaceInFlight: Promise<void> = Promise.resolve();
 
-export interface RenderPageInput {
+export type RenderPageInput = {
   bytes: ArrayBuffer;
   pageNumber: number;
   canvas: HTMLCanvasElement;
   scale?: number;
 }
 
-export interface RenderResult {
+export type RenderResult = {
   width: number;
   height: number;
 }
@@ -59,7 +53,7 @@ export interface RenderResult {
  * promise resolves. RenderPanel's effect cleanup uses this to abort
  * stale renders when the page changes mid-paint.
  */
-export interface RenderHandle {
+export type RenderHandle = {
   result: Promise<RenderResult>;
   cancel(): void;
 }
@@ -108,13 +102,13 @@ export async function renderPage(input: RenderPageInput): Promise<RenderResult> 
 }
 
 async function loadDocument(
-  lib: typeof import("pdfjs-dist"),
+  lib: typeof Pdfjs,
   bytes: ArrayBuffer,
 ): Promise<PDFDocumentProxy> {
   const fingerprint = await contentFingerprint(bytes);
   // Wait for any pending destroy() so we don't race with eviction.
   await cacheReplaceInFlight;
-  if (cached && cached.fingerprint === fingerprint) return cached.doc;
+  if (cached?.fingerprint === fingerprint) return cached.doc;
   if (cached) {
     const previous = cached;
     cached = null;

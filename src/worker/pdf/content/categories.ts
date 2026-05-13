@@ -10,7 +10,7 @@ import type { PdfOpCategory } from "../../../shared/ir-types";
 
 export const OPERATOR_CATEGORY: ReadonlyMap<string, PdfOpCategory> = new Map(
   // §8.4.4 graphics state operators
-  ([
+  [
     ["q", "graphics-state"],
     ["Q", "graphics-state"],
     ["cm", "graphics-state"],
@@ -113,7 +113,7 @@ export const OPERATOR_CATEGORY: ReadonlyMap<string, PdfOpCategory> = new Map(
     // §9.6.5 Type 3 font glyph
     ["d0", "type3-font"],
     ["d1", "type3-font"],
-  ] satisfies [string, PdfOpCategory][]),
+  ] satisfies [string, PdfOpCategory][],
 );
 
 export function categorizeOperator(op: string): PdfOpCategory {

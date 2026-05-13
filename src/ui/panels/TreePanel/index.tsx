@@ -1,16 +1,16 @@
 import { useMemo } from "react";
 import { PanelHeader } from "../PanelHeader";
 import { useApp } from "../../state/AppContext";
-import type { PdfObjectSummary } from "../../../shared/ir-types";
 import { ObjectsView } from "./ObjectsView";
 import { FileStructureView } from "./FileStructureView";
 import { PagesView } from "./PagesView";
 import { WarningsView } from "./WarningsView";
 import { ContentView } from "./ContentView";
 import { StructureView } from "./StructureView";
+import type { PdfObjectSummary } from "../../../shared/ir-types";
 import "./TreePanel.css";
 
-export function TreePanel(): JSX.Element {
+export function TreePanel(): React.JSX.Element {
   const { state } = useApp();
   const analysis = state.document.status === "loaded" ? state.document.analysis : undefined;
   const objects: PdfObjectSummary[] = useMemo(
@@ -48,7 +48,7 @@ export function TreePanel(): JSX.Element {
   );
 }
 
-function EmptyTree(): JSX.Element {
+function EmptyTree(): React.JSX.Element {
   return (
     <div className="treepanel-empty">
       <p>Open a PDF to populate the tree.</p>
@@ -56,7 +56,7 @@ function EmptyTree(): JSX.Element {
   );
 }
 
-function NotImplementedView(): JSX.Element {
+function NotImplementedView(): React.JSX.Element {
   return (
     <div className="treepanel-empty">
       <p>This view ships in a later phase.</p>

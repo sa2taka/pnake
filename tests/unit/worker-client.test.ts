@@ -36,9 +36,7 @@ describe("WorkerClient", () => {
   it("round-trips a ping payload", async () => {
     const { client, fake } = makeClient();
     fake.responder = (req) =>
-      req.type === "ping"
-        ? { id: req.id, ok: true, type: "ping", result: req.payload }
-        : undefined;
+      req.type === "ping" ? { id: req.id, ok: true, type: "ping", result: req.payload } : undefined;
 
     const result = await client.ping("hello");
     expect(result).toBe("hello");
@@ -58,9 +56,7 @@ describe("WorkerClient", () => {
   it("correlates concurrent requests by id", async () => {
     const { client, fake } = makeClient();
     fake.responder = (req) =>
-      req.type === "ping"
-        ? { id: req.id, ok: true, type: "ping", result: req.payload }
-        : undefined;
+      req.type === "ping" ? { id: req.id, ok: true, type: "ping", result: req.payload } : undefined;
 
     const [a, b, c] = await Promise.all([client.ping("a"), client.ping("b"), client.ping("c")]);
     expect([a, b, c]).toEqual(["a", "b", "c"]);

@@ -1,14 +1,9 @@
 import { useApp } from "../../state/AppContext";
-import type {
-  ObjectId,
-  PdfStructTreeChild,
-  PdfStructTreeNode,
-} from "../../../shared/ir-types";
+import type { ObjectId, PdfStructTreeChild, PdfStructTreeNode } from "../../../shared/ir-types";
 
-export function StructureView(): JSX.Element {
+export function StructureView(): React.JSX.Element {
   const { state, dispatch } = useApp();
-  const structTree =
-    state.document.status === "loaded" ? state.document.structTree : undefined;
+  const structTree = state.document.status === "loaded" ? state.document.structTree : undefined;
   if (!structTree) {
     return (
       <div className="treepanel-empty">
@@ -17,17 +12,11 @@ export function StructureView(): JSX.Element {
     );
   }
   return (
-    <ul
-      className="treepanel-list"
-      role="listbox"
-      aria-label="PDF logical structure"
-    >
+    <ul className="treepanel-list" role="listbox" aria-label="PDF logical structure">
       <StructNode
         node={structTree.root}
         depth={0}
-        onSelect={(target) =>
-          dispatch({ type: "select", nodeId: target, origin: "tree" })
-        }
+        onSelect={(target) => dispatch({ type: "select", nodeId: target, origin: "tree" })}
       />
     </ul>
   );
@@ -41,7 +30,7 @@ function StructNode({
   node: PdfStructTreeNode;
   depth: number;
   onSelect: (id: string) => void;
-}): JSX.Element {
+}): React.JSX.Element {
   return (
     <>
       <li
@@ -52,9 +41,7 @@ function StructNode({
         <span className="treepanel-row-id" style={{ paddingLeft: depth * 12 }}>
           {node.structureType}
         </span>
-        {node.title && (
-          <span className="treepanel-row-hint">{node.title}</span>
-        )}
+        {node.title && <span className="treepanel-row-hint">{node.title}</span>}
         {node.alt && (
           <span className="treepanel-chip" data-kind="metadata">
             alt
@@ -62,12 +49,7 @@ function StructNode({
         )}
       </li>
       {node.children.map((child, i) => (
-        <StructChildRow
-          key={i}
-          child={child}
-          depth={depth + 1}
-          onSelect={onSelect}
-        />
+        <StructChildRow key={i} child={child} depth={depth + 1} onSelect={onSelect} />
       ))}
     </>
   );
@@ -81,19 +63,12 @@ function StructChildRow({
   child: PdfStructTreeChild;
   depth: number;
   onSelect: (id: string) => void;
-}): JSX.Element {
+}): React.JSX.Element {
   if (child.kind === "elem") {
     return <StructNode node={child.node} depth={depth} onSelect={onSelect} />;
   }
   if (child.kind === "mcid") {
-    return (
-      <McidRow
-        mcid={child.mcid}
-        page={child.page}
-        depth={depth}
-        onSelect={onSelect}
-      />
-    );
+    return <McidRow mcid={child.mcid} page={child.page} depth={depth} onSelect={onSelect} />;
   }
   // objr
   return (
@@ -119,15 +94,14 @@ function McidRow({
   page: ObjectId | undefined;
   depth: number;
   onSelect: (id: string) => void;
-}): JSX.Element {
+}): React.JSX.Element {
   const { state, dispatch } = useApp();
   // Try to resolve the MCID to a concrete operation on the current page.
   const opOnCurrentPage =
     state.pageOps.status === "loaded"
       ? state.pageOps.result.operations.find((o) => o.mcid === mcid)
       : undefined;
-  const analysis =
-    state.document.status === "loaded" ? state.document.analysis : undefined;
+  const analysis = state.document.status === "loaded" ? state.document.analysis : undefined;
   return (
     <li
       className="treepanel-row"
@@ -148,9 +122,7 @@ function McidRow({
       <span className="treepanel-row-id" style={{ paddingLeft: depth * 12 }}>
         MCID {mcid}
       </span>
-      {page && (
-        <span className="treepanel-row-hint">page = {page}</span>
-      )}
+      {page && <span className="treepanel-row-hint">page = {page}</span>}
       {opOnCurrentPage && (
         <span className="treepanel-chip" data-kind={opOnCurrentPage.category}>
           {opOnCurrentPage.operator}

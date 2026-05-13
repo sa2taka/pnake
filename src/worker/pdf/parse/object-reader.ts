@@ -12,25 +12,15 @@
  *    for an `endstream` keyword preceded by whitespace.
  */
 
-import type {
-  ByteRange,
-  ObjectId,
-  PdfDict,
-  PdfValue,
-  PdfWarning,
-} from "../../../shared/ir-types";
 import { objectId } from "../../../shared/ir-types";
-import { ByteReader, isEol, isWhitespace, toBytes } from "../io/byte-reader";
+import { isEol, isWhitespace, toBytes } from "../io/byte-reader";
 import { Lexer } from "../lex/lexer";
 import { TokenStream } from "../lex/token-stream";
-import {
-  ParseError,
-  ValueParser,
-  expectInt,
-  extractFilters,
-} from "./value-parser";
+import { ParseError, ValueParser, expectInt, extractFilters } from "./value-parser";
+import type { ByteReader} from "../io/byte-reader";
+import type { ByteRange, ObjectId, PdfDict, PdfValue, PdfWarning } from "../../../shared/ir-types";
 
-export interface IndirectObject {
+export type IndirectObject = {
   id: ObjectId;
   number: number;
   generation: number;
@@ -96,7 +86,7 @@ export class IndirectObjectReader {
 
       const dataStart = reader.pos;
       const dict = value.kind === "dict" ? value.entries : undefined;
-      const literalLength = dict ? expectInt(dict["Length"]) : undefined;
+      const literalLength = dict ? expectInt(dict.Length) : undefined;
 
       let dataEnd: number;
       let trustedLength = false;
@@ -223,9 +213,7 @@ function scanForEndstream(
   // Second pass: any whitespace before, as a recovery for malformed writers.
   const wsMatch = scanWithPrefix(reader, dataStart, isWhitespace);
   if (wsMatch !== -1) return wsMatch;
-  throw new ParseError(
-    `Missing endstream for object ${number} ${generation}`,
-  );
+  throw new ParseError(`Missing endstream for object ${number} ${generation}`);
 }
 
 function scanWithPrefix(

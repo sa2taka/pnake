@@ -6,15 +6,7 @@ describe("parseContentStream", () => {
   it("returns operator-first events in order", () => {
     const src = "q\n2 w\nBT\n/F1 12 Tf\n(Hello) Tj\nET\nQ\n";
     const { operations } = parseContentStream(toBytes(src), 1);
-    expect(operations.map((o) => o.operator)).toEqual([
-      "q",
-      "w",
-      "BT",
-      "Tf",
-      "Tj",
-      "ET",
-      "Q",
-    ]);
+    expect(operations.map((o) => o.operator)).toEqual(["q", "w", "BT", "Tf", "Tj", "ET", "Q"]);
     expect(operations[1]?.operands[0]).toMatchObject({ kind: "int", value: 2 });
     const tf = operations[3]!;
     expect(tf.operands[0]).toMatchObject({ kind: "name", value: "F1" });

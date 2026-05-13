@@ -19,12 +19,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { createDefaultParserService, type ParserService } from "../services/parser-service";
 import type { PdfAnalysis, PdfStructTree } from "../../shared/ir-types";
 import type { PageOperationsResult } from "../../shared/protocol";
-import {
-  createDefaultParserService,
-  type ParserService,
-} from "../services/parser-service";
 
 export type TreeViewMode =
   | "file"
@@ -57,7 +54,7 @@ export type PageOpsState =
   | { status: "error"; pageNumber: number; error: string }
   | { status: "loaded"; result: PageOperationsResult };
 
-export interface AppState {
+export type AppState = {
   document: DocumentState;
   pageOps: PageOpsState;
   selectedNodeId?: string;
@@ -113,8 +110,7 @@ export function appReducer(state: AppState, action: Action): AppState {
       };
     case "loadSuccess": {
       const fileName =
-        action.fileName ??
-        (state.document.status !== "idle" ? state.document.fileName : undefined);
+        action.fileName ?? (state.document.status !== "idle" ? state.document.fileName : undefined);
       return {
         ...state,
         document: {
@@ -130,8 +126,7 @@ export function appReducer(state: AppState, action: Action): AppState {
       };
     }
     case "loadError": {
-      const fileName =
-        state.document.status !== "idle" ? state.document.fileName : undefined;
+      const fileName = state.document.status !== "idle" ? state.document.fileName : undefined;
       return {
         ...state,
         document: {
@@ -199,7 +194,7 @@ function firstSelectableId(analysis: PdfAnalysis): string | undefined {
 // dispatch and parser are stable). useApp() joins all three for the rare
 // caller that needs everything; otherwise prefer the slice-specific hooks.
 
-interface AppContextValue {
+type AppContextValue = {
   state: AppState;
   dispatch: React.Dispatch<Action>;
   parser: ParserService;
@@ -209,7 +204,7 @@ const StateContext = createContext<AppState | null>(null);
 const DispatchContext = createContext<React.Dispatch<Action> | null>(null);
 const ParserContext = createContext<ParserService | null>(null);
 
-interface AppProviderProps {
+type AppProviderProps = {
   children: ReactNode;
   parserService?: ParserService;
 }
@@ -243,7 +238,7 @@ function useParserService(externalService: ParserService | undefined): ParserSer
   return externalService ?? internal;
 }
 
-export function AppProvider({ children, parserService }: AppProviderProps): JSX.Element {
+export function AppProvider({ children, parserService }: AppProviderProps): React.JSX.Element {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const parser = useParserService(parserService);
 
@@ -255,16 +250,16 @@ export function AppProvider({ children, parserService }: AppProviderProps): JSX.
   // for WorkerParserService, throwIfAborted gates for InProcess). We also
   // suppress the dispatch when the controller was aborted to avoid
   // committing stale results into the reducer.
+  // state.pageOps is intentionally NOT in the deps. Each pageOpsStart /
+  // Success / Error dispatch replaces the pageOps reference; if we
+  // depended on it, dispatching pageOpsStart from inside this effect
+  // would immediately re-run cleanup, aborting our own in-flight fetch.
+  // The (document, currentPage, parser) triple is the only natural
+  // re-fetch signal anyway.
   useEffect(() => {
     if (!parser) return;
     if (state.document.status !== "loaded") return;
     if (!state.document.analysis.pages[state.currentPage - 1]) return;
-    if (
-      state.pageOps.status === "loaded" &&
-      state.pageOps.result.pageNumber === state.currentPage
-    ) {
-      return;
-    }
 
     const controller = new AbortController();
     const target = state.currentPage;
@@ -275,7 +270,7 @@ export function AppProvider({ children, parserService }: AppProviderProps): JSX.
         if (controller.signal.aborted) return;
         dispatch({ type: "pageOpsSuccess", result });
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         if (controller.signal.aborted) return;
         // Surface AbortError as a silent no-op (it's our own cleanup).
         if (err instanceof DOMException && err.name === "AbortError") return;
@@ -288,7 +283,7 @@ export function AppProvider({ children, parserService }: AppProviderProps): JSX.
     return () => {
       controller.abort();
     };
-  }, [state.document, state.currentPage, state.pageOps, parser]);
+  }, [state.document, state.currentPage, parser]);
 
   // Don't render children until the parser is available — the worker is
   // created in a commit-phase effect, so the very first render before the

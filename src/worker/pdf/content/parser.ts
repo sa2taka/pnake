@@ -15,25 +15,25 @@
  * starts with category="unknown" and the post-processor labels them.
  */
 
-import type { PdfDict, PdfOperation, PdfValue, PdfWarning } from "../../../shared/ir-types";
 import { operationId } from "../../../shared/ir-types";
 import { ByteReader, asciiString, isWhitespace, toBytes } from "../io/byte-reader";
 import { Lexer } from "../lex/lexer";
 import { TokenStream } from "../lex/token-stream";
 import { ParseError, ValueParser } from "../parse/value-parser";
 import { categorizeOperator } from "./categories";
+import type { PdfDict, PdfOperation, PdfValue, PdfWarning } from "../../../shared/ir-types";
 
 const KW_BI = "BI";
 const KW_ID = "ID";
 
 const EI_PATTERN = toBytes("EI");
 
-export interface ContentStreamParseResult {
+export type ContentStreamParseResult = {
   operations: PdfOperation[];
   warnings: PdfWarning[];
 }
 
-export interface ParseContentStreamOptions {
+export type ParseContentStreamOptions = {
   /**
    * Map from /Properties resource name (e.g. "P1") to its property dict.
    * Used when a BDC operator references the property list by name instead
@@ -77,15 +77,7 @@ export function parseContentStream(
       tokens.consume();
       const opStart = stack.length > 0 ? stackStart : peek.range.start;
       if (peek.value === KW_BI) {
-        const op = consumeInlineImage(
-          reader,
-          tokens,
-          lexer,
-          opStart,
-          pageNumber,
-          seq,
-          warnings,
-        );
+        const op = consumeInlineImage(reader, tokens, lexer, opStart, pageNumber, seq, warnings);
         ops.push(op);
         seq++;
         stack = [];

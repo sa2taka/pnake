@@ -8,13 +8,22 @@
  * keyword).
  */
 
-import type { ObjectId, PdfDict, PdfFilter, PdfValue, StreamHandle } from "../../../shared/ir-types";
 import { objectId } from "../../../shared/ir-types";
+import type {
+  ObjectId,
+  PdfDict,
+  PdfFilter,
+  PdfValue,
+  StreamHandle,
+} from "../../../shared/ir-types";
 import type { Token } from "../lex/tokens";
-import { TokenStream } from "../lex/token-stream";
+import type { TokenStream } from "../lex/token-stream";
 
 export class ParseError extends Error {
-  constructor(message: string, public token?: Token) {
+  constructor(
+    message: string,
+    public token?: Token,
+  ) {
     super(message);
     this.name = "ParseError";
   }
@@ -33,14 +42,17 @@ export class ParseError extends Error {
  */
 export type ValueParserMode = "object" | "content";
 
-export interface ValueParserOptions {
+export type ValueParserOptions = {
   mode?: ValueParserMode;
 }
 
 export class ValueParser {
   private readonly allowIndirectRef: boolean;
 
-  constructor(public tokens: TokenStream, options: ValueParserOptions = {}) {
+  constructor(
+    public tokens: TokenStream,
+    options: ValueParserOptions = {},
+  ) {
     this.allowIndirectRef = (options.mode ?? "object") === "object";
   }
 
@@ -163,17 +175,17 @@ export function expectInt(value: PdfValue | undefined): number | undefined {
 }
 
 export function expectName(value: PdfValue | undefined): string | undefined {
-  if (value && value.kind === "name") return value.value;
+  if (value?.kind === "name") return value.value;
   return undefined;
 }
 
 export function expectArray(value: PdfValue | undefined): PdfValue[] | undefined {
-  if (value && value.kind === "array") return value.items;
+  if (value?.kind === "array") return value.items;
   return undefined;
 }
 
 export function expectRef(value: PdfValue | undefined): ObjectId | undefined {
-  if (value && value.kind === "ref") return value.target;
+  if (value?.kind === "ref") return value.target;
   return undefined;
 }
 
@@ -182,7 +194,7 @@ export function expectRef(value: PdfValue | undefined): ObjectId | undefined {
  * Returns a list of filter identifiers, or null if /Filter is absent.
  */
 export function extractFilters(dict: PdfDict): PdfFilter[] {
-  const entry = dict["Filter"] ?? dict["F"];
+  const entry = dict.Filter ?? dict.F;
   if (!entry) return [];
   const names = entry.kind === "array" ? entry.items : [entry];
   const out: PdfFilter[] = [];
@@ -218,7 +230,7 @@ function asFilter(name: string): PdfFilter {
     DCT: "DCTDecode",
     RL: "RunLengthDecode",
   };
-  if (SHORT[name]) return SHORT[name]!;
+  if (SHORT[name]) return SHORT[name];
   return { kind: "unknown", name };
 }
 

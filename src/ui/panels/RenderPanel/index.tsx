@@ -6,17 +6,14 @@ import { RenderOverlay } from "../../overlay/RenderOverlay";
 import { isOperationId } from "../../../shared/ir-types";
 import "./RenderPanel.css";
 
-export function RenderPanel(): JSX.Element {
+export function RenderPanel(): React.JSX.Element {
   const { state } = useApp();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<string>("");
   const [pageSize, setPageSize] = useState<{ width: number; height: number } | null>(null);
-  const analysis =
-    state.document.status === "loaded" ? state.document.analysis : undefined;
-  const fileBytes =
-    state.document.status === "loaded" ? state.document.fileBytes : undefined;
-  const pageOps =
-    state.pageOps.status === "loaded" ? state.pageOps.result : undefined;
+  const analysis = state.document.status === "loaded" ? state.document.analysis : undefined;
+  const fileBytes = state.document.status === "loaded" ? state.document.fileBytes : undefined;
+  const pageOps = state.pageOps.status === "loaded" ? state.pageOps.result : undefined;
 
   // Render the page on canvas whenever the file or page changes.
   // renderPageWithHandle gives us a cancel() that aborts the in-flight
@@ -58,14 +55,10 @@ export function RenderPanel(): JSX.Element {
     <div className="renderpanel" data-testid="render-panel">
       <PanelHeader
         title="Render"
-        subtitle={
-          analysis ? `Page ${state.currentPage} / ${analysis.pages.length}` : undefined
-        }
+        subtitle={analysis ? `Page ${state.currentPage} / ${analysis.pages.length}` : undefined}
       />
       <div className="renderpanel-canvas-wrap">
-        {!fileBytes && (
-          <p className="renderpanel-empty">Open a PDF to render its pages.</p>
-        )}
+        {!fileBytes && <p className="renderpanel-empty">Open a PDF to render its pages.</p>}
         {status && (
           <p className="renderpanel-status" role="status">
             {status}
@@ -76,7 +69,9 @@ export function RenderPanel(): JSX.Element {
             ref={canvasRef}
             data-testid="render-canvas"
             aria-label={
-              pageSize ? `Page ${state.currentPage}, ${pageSize.width}×${pageSize.height}` : "PDF page"
+              pageSize
+                ? `Page ${state.currentPage}, ${pageSize.width}×${pageSize.height}`
+                : "PDF page"
             }
           />
           {currentPage && pageSize && pageOps && (

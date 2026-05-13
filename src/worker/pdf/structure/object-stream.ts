@@ -8,23 +8,23 @@
  * where the object bodies begin.
  */
 
-import type { ObjectId, PdfValue } from "../../../shared/ir-types";
 import { objectId } from "../../../shared/ir-types";
 import { ByteReader } from "../io/byte-reader";
 import { Lexer } from "../lex/lexer";
 import { TokenStream } from "../lex/token-stream";
-import type { IndirectObject } from "../parse/object-reader";
 import { ValueParser, expectInt, expectName, extractFilters } from "../parse/value-parser";
 import { decodeStream, extractDecodeParms } from "../streams/decode";
+import type { IndirectObject } from "../parse/object-reader";
+import type { ObjectId, PdfValue } from "../../../shared/ir-types";
 
-export interface ObjectStreamEntry {
+export type ObjectStreamEntry = {
   id: ObjectId;
   number: number;
   bodyOffset: number;
   value: PdfValue;
 }
 
-export interface ObjectStreamContents {
+export type ObjectStreamContents = {
   parent: ObjectId;
   entries: ObjectStreamEntry[];
   decoded: Uint8Array;
@@ -46,9 +46,7 @@ export async function parseObjectStream(
   // at a non-ObjStm we want a clean rejection, not silently corrupted IR.
   const typeName = expectName(dict.Type);
   if (typeName !== "ObjStm") {
-    throw new Error(
-      `Object ${obj.id} claimed as ObjStm but /Type is ${typeName ?? "(missing)"}`,
-    );
+    throw new Error(`Object ${obj.id} claimed as ObjStm but /Type is ${typeName ?? "(missing)"}`);
   }
   const n = expectInt(dict.N);
   const first = expectInt(dict.First);
@@ -80,8 +78,7 @@ export async function parseObjectStream(
   }
 
   const entries: ObjectStreamEntry[] = [];
-  for (let i = 0; i < pairs.length; i++) {
-    const [num, relOff] = pairs[i]!;
+  for (const [num, relOff] of pairs) {
     const start = first + relOff;
     if (start > decoded.length) {
       throw new Error(`ObjStm body offset ${start} exceeds decoded length`);

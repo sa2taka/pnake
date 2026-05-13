@@ -12,9 +12,9 @@
 
 /// <reference lib="webworker" />
 
-import type { WorkerRequest, WorkerResponse } from "../shared/protocol";
 import { serializeError } from "../shared/protocol";
 import { ParserSession } from "../core/parser-session";
+import type { WorkerRequest, WorkerResponse } from "../shared/protocol";
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 const session = new ParserSession();

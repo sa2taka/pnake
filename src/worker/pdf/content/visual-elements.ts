@@ -12,6 +12,10 @@
  * accuracy.
  */
 
+import { GraphicsStateSimulator, applyMatrix, multiply, transformRect } from "./graphics-state";
+import { decodeWithCMap } from "../resources/cmap";
+import { decodeWithEncoding } from "../resources/encoding";
+import type { ToUnicodeCMap } from "../resources/cmap";
 import type {
   PdfOperation,
   PdfRect,
@@ -20,31 +24,20 @@ import type {
   PdfVisualElement,
   PdfWarning,
 } from "../../../shared/ir-types";
-import {
-  GraphicsStateSimulator,
-  applyMatrix,
-  multiply,
-  transformRect,
-} from "./graphics-state";
-import type { ToUnicodeCMap } from "../resources/cmap";
-import { decodeWithCMap } from "../resources/cmap";
-import { decodeWithEncoding } from "../resources/encoding";
 
-export interface BuildVisualElementsInput {
+export type BuildVisualElementsInput = {
   pageNumber: number;
   operations: PdfOperation[];
   resources: PdfResolvedResources;
   fontCMaps?: Map<string, ToUnicodeCMap>;
 }
 
-export interface BuildVisualElementsResult {
+export type BuildVisualElementsResult = {
   elements: PdfVisualElement[];
   warnings: PdfWarning[];
 }
 
-export function buildVisualElements(
-  input: BuildVisualElementsInput,
-): BuildVisualElementsResult {
+export function buildVisualElements(input: BuildVisualElementsInput): BuildVisualElementsResult {
   const sim = new GraphicsStateSimulator();
   const elements: PdfVisualElement[] = [];
   const warnings: PdfWarning[] = [];
@@ -81,15 +74,13 @@ export function buildVisualElements(
       }
       case "TJ": {
         const arr = op.operands[0];
-        if (!arr || arr.kind !== "array") break;
+        if (arr?.kind !== "array") break;
         const fontKey = ctx.stateBefore.text.fontKey;
         const fontEncoding = fontKey ? input.resources.fonts[fontKey]?.encoding : undefined;
         const strings: string[] = [];
         for (const item of arr.items) {
           if (item.kind === "string") {
-            strings.push(
-              previewText(item.raw, fontKey, input.fontCMaps, fontEncoding) ?? "",
-            );
+            strings.push(previewText(item.raw, fontKey, input.fontCMaps, fontEncoding) ?? "");
           }
         }
         const combined = strings.join("");

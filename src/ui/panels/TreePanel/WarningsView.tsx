@@ -1,10 +1,9 @@
 import { useApp } from "../../state/AppContext";
 import type { PdfWarning } from "../../../shared/ir-types";
 
-export function WarningsView(): JSX.Element {
+export function WarningsView(): React.JSX.Element {
   const { state } = useApp();
-  const warnings =
-    state.document.status === "loaded" ? state.document.analysis.warnings : [];
+  const warnings = state.document.status === "loaded" ? state.document.analysis.warnings : [];
   if (warnings.length === 0) {
     return <div className="treepanel-empty">No warnings.</div>;
   }
@@ -17,13 +16,9 @@ export function WarningsView(): JSX.Element {
   );
 }
 
-function WarningRow({ warning }: { warning: PdfWarning }): JSX.Element {
+function WarningRow({ warning }: { warning: PdfWarning }): React.JSX.Element {
   const tone =
-    warning.severity === "error"
-      ? "danger"
-      : warning.severity === "warn"
-        ? "warning"
-        : "info";
+    warning.severity === "error" ? "danger" : warning.severity === "warn" ? "warning" : "info";
   return (
     <li className="treepanel-row" data-tone={tone}>
       <span className="treepanel-row-id">{warning.severity.toUpperCase()}</span>

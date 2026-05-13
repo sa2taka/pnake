@@ -8,12 +8,12 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export interface VirtualRange {
+export type VirtualRange = {
   start: number;
   end: number;
 }
 
-export interface UseVirtualListResult<E extends HTMLElement = HTMLElement> {
+export type UseVirtualListResult<E extends HTMLElement = HTMLElement> = {
   containerRef: React.MutableRefObject<E | null>;
   range: VirtualRange;
   totalHeight: number;
@@ -24,7 +24,7 @@ export function useVirtualList<E extends HTMLElement = HTMLElement>(
   rowHeight: number,
   overscan = 8,
 ): UseVirtualListResult<E> {
-  const containerRef = useRef<E | null>(null) as React.MutableRefObject<E | null>;
+  const containerRef = useRef<E | null>(null);
   const [range, setRange] = useState<VirtualRange>(() => ({
     start: 0,
     end: Math.min(itemCount, 40),
@@ -38,10 +38,7 @@ export function useVirtualList<E extends HTMLElement = HTMLElement>(
       const top = el.scrollTop;
       const height = el.clientHeight;
       const start = Math.max(0, Math.floor(top / rowHeight) - overscan);
-      const end = Math.min(
-        itemCount,
-        Math.ceil((top + height) / rowHeight) + overscan,
-      );
+      const end = Math.min(itemCount, Math.ceil((top + height) / rowHeight) + overscan);
       setRange((prev) => (prev.start === start && prev.end === end ? prev : { start, end }));
     };
 

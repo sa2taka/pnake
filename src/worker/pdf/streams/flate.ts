@@ -31,7 +31,7 @@ export async function inflateZlib(input: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(buf);
 }
 
-export interface FlateDecodeParms {
+export type FlateDecodeParms = {
   predictor: number;
   colors: number;
   bitsPerComponent: number;
@@ -54,10 +54,7 @@ function readInt(value: PdfValue | undefined, fallback: number): number {
   return fallback;
 }
 
-export async function flateDecode(
-  input: Uint8Array,
-  parmsDict?: PdfDict,
-): Promise<Uint8Array> {
+export async function flateDecode(input: Uint8Array, parmsDict?: PdfDict): Promise<Uint8Array> {
   const decompressed = await inflateZlib(input);
   const parms = readFlateParms(parmsDict);
   if (parms.predictor <= 1) return decompressed;

@@ -112,8 +112,9 @@ describe("Lexer — keywords and recovery", () => {
       "eof",
     ]);
     const keywordValues = tokens
-      .filter((t): t is { kind: "keyword"; value: string; range: { start: number; end: number } } =>
-        t.kind === "keyword",
+      .filter(
+        (t): t is { kind: "keyword"; value: string; range: { start: number; end: number } } =>
+          t.kind === "keyword",
       )
       .map((t) => t.value);
     expect(keywordValues).toEqual(["obj", "R", "endobj", "stream"]);

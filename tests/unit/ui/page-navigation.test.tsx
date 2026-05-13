@@ -38,7 +38,7 @@ describe("Page navigation", () => {
     const parser = new InProcessParserService();
     render(<App parserService={parser} />);
 
-    const fileInput = screen.getByTestId("file-input") as HTMLInputElement;
+    const fileInput = screen.getByTestId("file-input");
     Object.defineProperty(fileInput, "files", {
       value: [makeTwoPagePdf()],
       configurable: true,

@@ -9,13 +9,13 @@
 
 import type { PdfOperation, PdfValue } from "./ir-types";
 
-export interface OperatorExplanation {
+export type OperatorExplanation = {
   human: string;
   technical: string;
   specSection?: string;
 }
 
-interface OperatorInfo {
+type OperatorInfo = {
   /** Plain-language template. The placeholder `{operands}` is interpolated. */
   human: (operands: PdfValue[]) => string;
   /** Concise technical description. */
@@ -58,36 +58,78 @@ const TABLE: Record<string, OperatorInfo> = {
   },
 
   // path
-  m: { human: (o) => `(${formatNumber(o[0])}, ${formatNumber(o[1])}) へパスを移動します。`, technical: "moveto", specSection: "§8.5.2" },
-  l: { human: (o) => `直線で (${formatNumber(o[0])}, ${formatNumber(o[1])}) まで描画します。`, technical: "lineto", specSection: "§8.5.2" },
+  m: {
+    human: (o) => `(${formatNumber(o[0])}, ${formatNumber(o[1])}) へパスを移動します。`,
+    technical: "moveto",
+    specSection: "§8.5.2",
+  },
+  l: {
+    human: (o) => `直線で (${formatNumber(o[0])}, ${formatNumber(o[1])}) まで描画します。`,
+    technical: "lineto",
+    specSection: "§8.5.2",
+  },
   re: {
     human: (o) =>
       `矩形パス x=${formatNumber(o[0])} y=${formatNumber(o[1])} w=${formatNumber(o[2])} h=${formatNumber(o[3])} を構築します。`,
     technical: "Append rectangle to path.",
     specSection: "§8.5.2",
   },
-  h: { human: () => "現在のサブパスを閉じます。", technical: "Close subpath.", specSection: "§8.5.2" },
+  h: {
+    human: () => "現在のサブパスを閉じます。",
+    technical: "Close subpath.",
+    specSection: "§8.5.2",
+  },
 
   // path-paint
-  S: { human: () => "現在のパスをストローク(輪郭)で描画します。", technical: "Stroke path.", specSection: "§8.5.3" },
+  S: {
+    human: () => "現在のパスをストローク(輪郭)で描画します。",
+    technical: "Stroke path.",
+    specSection: "§8.5.3",
+  },
   s: { human: () => "サブパスを閉じてからストロークします。", technical: "Close & stroke path." },
-  f: { human: () => "現在のパスを塗りつぶします(非ゼロ規則)。", technical: "Fill path (non-zero)." },
-  F: { human: () => "現在のパスを塗りつぶします(非ゼロ規則)。", technical: "Fill path (deprecated alias)." },
-  "f*": { human: () => "現在のパスを塗りつぶします(偶奇規則)。", technical: "Fill path (even-odd)." },
-  B: { human: () => "現在のパスを塗りつぶしてからストロークします。", technical: "Fill and stroke." },
-  "B*": { human: () => "偶奇塗りつぶし→ストロークの順で描画します。", technical: "Fill (even-odd) and stroke." },
-  n: { human: () => "現在のパスを破棄します(描画はしません)。", technical: "End path without filling or stroking." },
+  f: {
+    human: () => "現在のパスを塗りつぶします(非ゼロ規則)。",
+    technical: "Fill path (non-zero).",
+  },
+  F: {
+    human: () => "現在のパスを塗りつぶします(非ゼロ規則)。",
+    technical: "Fill path (deprecated alias).",
+  },
+  "f*": {
+    human: () => "現在のパスを塗りつぶします(偶奇規則)。",
+    technical: "Fill path (even-odd).",
+  },
+  B: {
+    human: () => "現在のパスを塗りつぶしてからストロークします。",
+    technical: "Fill and stroke.",
+  },
+  "B*": {
+    human: () => "偶奇塗りつぶし→ストロークの順で描画します。",
+    technical: "Fill (even-odd) and stroke.",
+  },
+  n: {
+    human: () => "現在のパスを破棄します(描画はしません)。",
+    technical: "End path without filling or stroking.",
+  },
 
   // clipping
-  W: { human: () => "現在のパスを次のパス操作の後にクリッピング領域とします。", technical: "Set clipping path (non-zero)." },
-  "W*": { human: () => "偶奇規則でクリッピング領域を設定します。", technical: "Set clipping path (even-odd)." },
+  W: {
+    human: () => "現在のパスを次のパス操作の後にクリッピング領域とします。",
+    technical: "Set clipping path (non-zero).",
+  },
+  "W*": {
+    human: () => "偶奇規則でクリッピング領域を設定します。",
+    technical: "Set clipping path (even-odd).",
+  },
 
   // text
-  BT: { human: () => "テキストブロックを開始します。テキスト行列が単位行列にリセットされます。", technical: "Begin text object." },
+  BT: {
+    human: () => "テキストブロックを開始します。テキスト行列が単位行列にリセットされます。",
+    technical: "Begin text object.",
+  },
   ET: { human: () => "テキストブロックを終了します。", technical: "End text object." },
   Tf: {
-    human: (o) =>
-      `フォントを ${formatName(o[0])}、サイズを ${formatNumber(o[1])} に設定します。`,
+    human: (o) => `フォントを ${formatName(o[0])}、サイズを ${formatNumber(o[1])} に設定します。`,
     technical: "Set font and size.",
     specSection: "§9.3",
   },
@@ -101,22 +143,58 @@ const TABLE: Record<string, OperatorInfo> = {
     technical: "Show text with positioning array.",
     specSection: "§9.4.3",
   },
-  "'": { human: () => "次の行に進んで文字列を描画します。", technical: "Move to next line and show text." },
-  '"': { human: () => "Tw / Tc を更新してから次行で文字列を描画します。", technical: "Move to next line; show with word/char spacing." },
-  Tc: { human: (o) => `字間を ${formatNumber(o[0])} に設定します。`, technical: "Set character spacing." },
-  Tw: { human: (o) => `単語間隔を ${formatNumber(o[0])} に設定します。`, technical: "Set word spacing." },
-  Tz: { human: (o) => `水平スケールを ${formatNumber(o[0])}% に設定します。`, technical: "Set horizontal scaling." },
+  "'": {
+    human: () => "次の行に進んで文字列を描画します。",
+    technical: "Move to next line and show text.",
+  },
+  '"': {
+    human: () => "Tw / Tc を更新してから次行で文字列を描画します。",
+    technical: "Move to next line; show with word/char spacing.",
+  },
+  Tc: {
+    human: (o) => `字間を ${formatNumber(o[0])} に設定します。`,
+    technical: "Set character spacing.",
+  },
+  Tw: {
+    human: (o) => `単語間隔を ${formatNumber(o[0])} に設定します。`,
+    technical: "Set word spacing.",
+  },
+  Tz: {
+    human: (o) => `水平スケールを ${formatNumber(o[0])}% に設定します。`,
+    technical: "Set horizontal scaling.",
+  },
   TL: { human: (o) => `行送りを ${formatNumber(o[0])} に設定します。`, technical: "Set leading." },
-  Tr: { human: (o) => `テキスト描画モードを ${formatNumber(o[0])} に設定します。`, technical: "Set text rendering mode." },
-  Ts: { human: (o) => `テキストの上下オフセット(rise)を ${formatNumber(o[0])} に設定します。`, technical: "Set text rise." },
-  Td: { human: (o) => `テキスト位置を (${formatNumber(o[0])}, ${formatNumber(o[1])}) ずらします。`, technical: "Move text position." },
-  TD: { human: () => `テキスト位置をずらし、行送り(leading)も更新します。`, technical: "Move text position; set leading." },
-  Tm: { human: (o) => `テキスト行列を ${formatMatrix(o)} に設定します。`, technical: "Set text matrix and line matrix." },
+  Tr: {
+    human: (o) => `テキスト描画モードを ${formatNumber(o[0])} に設定します。`,
+    technical: "Set text rendering mode.",
+  },
+  Ts: {
+    human: (o) => `テキストの上下オフセット(rise)を ${formatNumber(o[0])} に設定します。`,
+    technical: "Set text rise.",
+  },
+  Td: {
+    human: (o) => `テキスト位置を (${formatNumber(o[0])}, ${formatNumber(o[1])}) ずらします。`,
+    technical: "Move text position.",
+  },
+  TD: {
+    human: () => `テキスト位置をずらし、行送り(leading)も更新します。`,
+    technical: "Move text position; set leading.",
+  },
+  Tm: {
+    human: (o) => `テキスト行列を ${formatMatrix(o)} に設定します。`,
+    technical: "Set text matrix and line matrix.",
+  },
   "T*": { human: () => "次の行へ移動します。", technical: "Move to start of next line." },
 
   // color
-  G: { human: (o) => `ストローク色をグレースケール ${formatNumber(o[0])} に設定します。`, technical: "Set stroking gray." },
-  g: { human: (o) => `塗り色をグレースケール ${formatNumber(o[0])} に設定します。`, technical: "Set non-stroking gray." },
+  G: {
+    human: (o) => `ストローク色をグレースケール ${formatNumber(o[0])} に設定します。`,
+    technical: "Set stroking gray.",
+  },
+  g: {
+    human: (o) => `塗り色をグレースケール ${formatNumber(o[0])} に設定します。`,
+    technical: "Set non-stroking gray.",
+  },
   RG: {
     human: (o) =>
       `ストローク色を RGB (${formatNumber(o[0])}, ${formatNumber(o[1])}, ${formatNumber(o[2])}) に設定します。`,
@@ -129,9 +207,18 @@ const TABLE: Record<string, OperatorInfo> = {
   },
   K: { human: () => "ストローク色を CMYK で設定します。", technical: "Set stroking CMYK color." },
   k: { human: () => "塗り色を CMYK で設定します。", technical: "Set non-stroking CMYK color." },
-  CS: { human: (o) => `ストローク色空間を ${formatName(o[0])} に設定します。`, technical: "Set stroking color space." },
-  cs: { human: (o) => `塗り色空間を ${formatName(o[0])} に設定します。`, technical: "Set non-stroking color space." },
-  SCN: { human: () => "拡張ストローク色を設定します。", technical: "Set stroking color (extended)." },
+  CS: {
+    human: (o) => `ストローク色空間を ${formatName(o[0])} に設定します。`,
+    technical: "Set stroking color space.",
+  },
+  cs: {
+    human: (o) => `塗り色空間を ${formatName(o[0])} に設定します。`,
+    technical: "Set non-stroking color space.",
+  },
+  SCN: {
+    human: () => "拡張ストローク色を設定します。",
+    technical: "Set stroking color (extended).",
+  },
   scn: { human: () => "拡張塗り色を設定します。", technical: "Set non-stroking color (extended)." },
 
   // xobject
@@ -143,14 +230,29 @@ const TABLE: Record<string, OperatorInfo> = {
   },
 
   // shadings
-  sh: { human: (o) => `シェーディング ${formatName(o[0])} を描画します。`, technical: "Paint shading." },
+  sh: {
+    human: (o) => `シェーディング ${formatName(o[0])} を描画します。`,
+    technical: "Paint shading.",
+  },
 
   // marked content
-  BMC: { human: (o) => `マーク済みコンテンツ ${formatName(o[0])} を開始します。`, technical: "Begin marked content." },
-  BDC: { human: (o) => `属性つきマーク済みコンテンツ ${formatName(o[0])} を開始します。`, technical: "Begin marked content with property list." },
+  BMC: {
+    human: (o) => `マーク済みコンテンツ ${formatName(o[0])} を開始します。`,
+    technical: "Begin marked content.",
+  },
+  BDC: {
+    human: (o) => `属性つきマーク済みコンテンツ ${formatName(o[0])} を開始します。`,
+    technical: "Begin marked content with property list.",
+  },
   EMC: { human: () => "マーク済みコンテンツを終了します。", technical: "End marked content." },
-  MP: { human: (o) => `マーキングポイント ${formatName(o[0])} を記録します。`, technical: "Marked point." },
-  DP: { human: (o) => `属性つきマーキングポイント ${formatName(o[0])} を記録します。`, technical: "Marked point with property list." },
+  MP: {
+    human: (o) => `マーキングポイント ${formatName(o[0])} を記録します。`,
+    technical: "Marked point.",
+  },
+  DP: {
+    human: (o) => `属性つきマーキングポイント ${formatName(o[0])} を記録します。`,
+    technical: "Marked point with property list.",
+  },
 
   // inline image
   "BI/EI": {
@@ -181,20 +283,17 @@ function formatNumber(value: PdfValue | undefined): string {
 }
 
 function formatName(value: PdfValue | undefined): string {
-  if (!value || value.kind !== "name") return "?";
+  if (value?.kind !== "name") return "?";
   return `/${value.value}`;
 }
 
 function formatMatrix(operands: PdfValue[]): string {
   if (operands.length < 6) return "[?]";
-  return `[${operands
-    .slice(0, 6)
-    .map(formatNumber)
-    .join(" ")}]`;
+  return `[${operands.slice(0, 6).map(formatNumber).join(" ")}]`;
 }
 
 function describeString(value: PdfValue | undefined): string {
-  if (!value || value.kind !== "string") return "(?)";
+  if (value?.kind !== "string") return "(?)";
   // ASCII printable summary; non-printable bytes get '·'.
   let text = "";
   for (let i = 0; i < Math.min(value.raw.length, 64); i++) {

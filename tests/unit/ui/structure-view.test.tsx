@@ -41,7 +41,7 @@ describe("StructureView (tagged PDF)", () => {
     const parser = new InProcessParserService();
     render(<App parserService={parser} />);
 
-    const fileInput = screen.getByTestId("file-input") as HTMLInputElement;
+    const fileInput = screen.getByTestId("file-input");
     Object.defineProperty(fileInput, "files", {
       value: [makeTaggedPdf()],
       configurable: true,
@@ -49,9 +49,7 @@ describe("StructureView (tagged PDF)", () => {
     fireEvent.change(fileInput);
 
     // Wait for the manifest.
-    await waitFor(() =>
-      expect(screen.getAllByText(/1 pages/i).length).toBeGreaterThan(0),
-    );
+    await waitFor(() => expect(screen.getAllByText(/1 pages/i).length).toBeGreaterThan(0));
 
     // Switch tree view to "structure".
     fireEvent.change(screen.getByRole("toolbar").querySelector("select")!, {

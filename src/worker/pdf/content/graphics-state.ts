@@ -10,14 +10,9 @@
  * capture before/after pairs by sampling at the right moment.
  */
 
-import type {
-  Matrix,
-  PdfOperation,
-  PdfRect,
-  PdfValue,
-} from "../../../shared/ir-types";
+import type { Matrix, PdfOperation, PdfRect, PdfValue } from "../../../shared/ir-types";
 
-export interface TextState {
+export type TextState = {
   charSpace: number;
   wordSpace: number;
   horizScale: number;
@@ -30,7 +25,7 @@ export interface TextState {
   lineMatrix: Matrix;
 }
 
-export interface GraphicsState {
+export type GraphicsState = {
   ctm: Matrix;
   lineWidth: number;
   lineCap: number;
@@ -87,7 +82,7 @@ export function applyMatrix(m: Matrix, x: number, y: number): { x: number; y: nu
 
 // ---- Walker ----
 
-export interface OperationContext {
+export type OperationContext = {
   operation: PdfOperation;
   /** Graphics state at the moment this operator starts. */
   stateBefore: GraphicsState;
@@ -294,13 +289,13 @@ function matrixOperand(operands: PdfValue[]): Matrix | null {
  * codepoint counts in from the visual-elements layer.
  */
 function approximateAdvanceForString(operand: PdfValue | undefined, text: TextState): number {
-  if (!operand || operand.kind !== "string") return 0;
+  if (operand?.kind !== "string") return 0;
   const glyphCount = operand.raw.length;
   return glyphCount * 0.5 * text.fontSize * text.horizScale;
 }
 
 function approximateAdvanceForTJ(operand: PdfValue | undefined, text: TextState): number {
-  if (!operand || operand.kind !== "array") return 0;
+  if (operand?.kind !== "array") return 0;
   let advance = 0;
   for (const item of operand.items) {
     if (item.kind === "string") {

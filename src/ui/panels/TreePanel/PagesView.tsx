@@ -1,9 +1,8 @@
 import { useApp } from "../../state/AppContext";
 
-export function PagesView(): JSX.Element {
+export function PagesView(): React.JSX.Element {
   const { state, dispatch } = useApp();
-  const pages =
-    state.document.status === "loaded" ? state.document.analysis.pages : [];
+  const pages = state.document.status === "loaded" ? state.document.analysis.pages : [];
   if (pages.length === 0) {
     return <div className="treepanel-empty">No pages.</div>;
   }
@@ -14,9 +13,7 @@ export function PagesView(): JSX.Element {
           key={page.pageNumber}
           className="treepanel-row"
           data-selected={state.selectedNodeId === page.objectRef}
-          onClick={() =>
-            dispatch({ type: "select", nodeId: page.objectRef, origin: "tree" })
-          }
+          onClick={() => dispatch({ type: "select", nodeId: page.objectRef, origin: "tree" })}
         >
           <span className="treepanel-row-id">Page {page.pageNumber}</span>
           <span className="treepanel-chip" data-kind="page">

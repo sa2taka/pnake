@@ -19,7 +19,7 @@ import type {
 } from "../shared/protocol";
 import type { ObjectId, PdfObjectDetail } from "../shared/ir-types";
 
-export interface CallOptions {
+export type CallOptions = {
   /**
    * Aborting the signal rejects the caller's Promise with AbortError and
    * sends a cancel envelope to the worker. The worker today ignores it —
@@ -31,7 +31,7 @@ export interface CallOptions {
 type Pending = {
   resolve: (value: unknown) => void;
   reject: (reason: unknown) => void;
-};
+}
 
 export class WorkerClient {
   private nextId = 1;
@@ -77,11 +77,7 @@ export class WorkerClient {
     return this.call("ping", { payload }, undefined, options);
   }
 
-  load(
-    bytes: ArrayBuffer,
-    fileName?: string,
-    options: CallOptions = {},
-  ): Promise<LoadResult> {
+  load(bytes: ArrayBuffer, fileName?: string, options: CallOptions = {}): Promise<LoadResult> {
     return this.call("load", { bytes, fileName }, [bytes], options);
   }
 
@@ -97,10 +93,7 @@ export class WorkerClient {
     return this.call("getStream", { objectId, mode }, undefined, options);
   }
 
-  getPageOperations(
-    pageNumber: number,
-    options: CallOptions = {},
-  ): Promise<PageOperationsResult> {
+  getPageOperations(pageNumber: number, options: CallOptions = {}): Promise<PageOperationsResult> {
     return this.call("getPageOperations", { pageNumber }, undefined, options);
   }
 
@@ -118,7 +111,7 @@ export class WorkerClient {
       this.pending.set(id, {
         // The Pending map stores heterogeneous request types behind a single
         // entry shape; the cast here is the one inherent variance point.
-        resolve: resolve as (value: unknown) => void,
+        resolve,
         reject,
       });
 

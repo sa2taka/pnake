@@ -14,6 +14,14 @@
  * details are pulled lazily.
  */
 
+import { parseObjectId } from "../../../shared/ir-types";
+import { ByteReader, asciiString, isWhitespace, toBytes } from "../io/byte-reader";
+import { IndirectObjectReader, type IndirectObject } from "../parse/object-reader";
+import { expectArray, expectInt, expectName, expectRef } from "../parse/value-parser";
+import { findEofMarkers, findStartxref, parseXrefAndTrailer, KW_XREF } from "./xref-table";
+import { parseXrefStream } from "./xref-stream";
+import { parseObjectStream } from "./object-stream";
+import { scanIndirectObjectHeaders } from "./scan-recovery";
 import type {
   ByteRange,
   ObjectId,
@@ -34,23 +42,10 @@ import type {
   PdfXref,
   PdfXrefEntry,
 } from "../../../shared/ir-types";
-import { parseObjectId } from "../../../shared/ir-types";
-import { ByteReader, asciiString, isWhitespace, toBytes } from "../io/byte-reader";
-import { IndirectObjectReader, type IndirectObject } from "../parse/object-reader";
-import { expectArray, expectInt, expectName, expectRef } from "../parse/value-parser";
-import {
-  findEofMarkers,
-  findStartxref,
-  parseXrefAndTrailer,
-  KW_XREF,
-} from "./xref-table";
-import { parseXrefStream } from "./xref-stream";
-import { parseObjectStream } from "./object-stream";
-import { scanIndirectObjectHeaders } from "./scan-recovery";
 
 const HEADER_SIG = toBytes("%PDF-");
 
-export interface ParseResult {
+export type ParseResult = {
   analysis: PdfAnalysis;
   objects: Map<ObjectId, IndirectObject>;
   reader: ByteReader;
@@ -58,13 +53,13 @@ export interface ParseResult {
 
 // Intermediate per-phase shapes; not part of the public IR.
 
-interface HeaderInfo {
+type HeaderInfo = {
   version: string;
   range: ByteRange;
   raw: string;
 }
 
-interface StructureParse {
+type StructureParse = {
   header: HeaderInfo;
   eofMarkers: ByteRange[];
   bodies: PdfBody[];
@@ -80,19 +75,18 @@ interface StructureParse {
   warnings: PdfWarning[];
 }
 
-interface ObjectGraph {
+type ObjectGraph = {
   objects: Map<ObjectId, IndirectObject>;
   objectsIndex: Record<ObjectId, PdfObjectSummary>;
   warnings: PdfWarning[];
 }
 
-interface DocumentGraph {
+type DocumentGraph = {
   tree?: PdfDocumentTree;
   pages: PdfPageSummary[];
   formFields: PdfFormField[];
   warnings: PdfWarning[];
 }
-
 
 export async function buildManifest(bytes: Uint8Array): Promise<PdfAnalysis> {
   return (await parsePdf(bytes)).analysis;
@@ -138,8 +132,7 @@ async function parseStructure(reader: ByteReader): Promise<StructureParse> {
       id: "warn:startxref-missing",
       severity: "warn",
       category: "structure",
-      message:
-        "Could not locate startxref — recovering by scanning for indirect object headers",
+      message: "Could not locate startxref — recovering by scanning for indirect object headers",
     });
     fillFromScan(reader, xrefEntries);
     recovery = "no-startxref";
@@ -208,17 +201,14 @@ function fillFromScan(reader: ByteReader, entries: Map<number, PdfXrefEntry>): v
   }
 }
 
-interface XrefChainResult {
+type XrefChainResult = {
   bodies: PdfBody[];
   entries: Map<number, PdfXrefEntry>;
   hadFailedHop: boolean;
   warnings: PdfWarning[];
 }
 
-async function walkXrefChain(
-  reader: ByteReader,
-  startOffset: number,
-): Promise<XrefChainResult> {
+async function walkXrefChain(reader: ByteReader, startOffset: number): Promise<XrefChainResult> {
   const bodies: PdfBody[] = [];
   const entries = new Map<number, PdfXrefEntry>();
   const warnings: PdfWarning[] = [];
@@ -285,7 +275,7 @@ async function walkXrefChain(
   return { bodies, entries, hadFailedHop, warnings };
 }
 
-interface XrefParse {
+type XrefParse = {
   xref: PdfXref;
   trailer: PdfTrailer;
   warnings: PdfWarning[];
@@ -303,11 +293,11 @@ async function readXrefAt(reader: ByteReader, offset: number): Promise<XrefParse
 }
 
 function readPrev(dict: PdfDict): number | null {
-  return expectInt(dict["Prev"]) ?? null;
+  return expectInt(dict.Prev) ?? null;
 }
 
 function readXRefStm(dict: PdfDict): number | null {
-  return expectInt(dict["XRefStm"]) ?? null;
+  return expectInt(dict.XRefStm) ?? null;
 }
 
 // ---------- loadObjectGraph: indirect objects + ObjStm expansion + summaries ----------
@@ -514,7 +504,7 @@ function resolveDocumentTree(
   const rootRef = expectRef(trailerDict.Root);
   if (!rootRef) return undefined;
   const catalog = objects.get(rootRef);
-  if (!catalog || catalog.value.kind !== "dict") {
+  if (catalog?.value.kind !== "dict") {
     return { catalogRef: rootRef, pagesRootRef: rootRef };
   }
   const entries = catalog.value.entries;
@@ -545,11 +535,11 @@ function collectEmbeddedFiles(
 ): { name: string; objectRef: ObjectId }[] {
   if (!namesRef) return [];
   const names = objects.get(namesRef);
-  if (!names || names.value.kind !== "dict") return [];
+  if (names?.value.kind !== "dict") return [];
   const ef = names.value.entries.EmbeddedFiles;
   if (!ef) return [];
   const efObj = ef.kind === "ref" ? objects.get(ef.target) : { value: ef };
-  if (!efObj || efObj.value.kind !== "dict") return [];
+  if (efObj?.value.kind !== "dict") return [];
   const namesArray = expectArray(efObj.value.entries.Names);
   if (!namesArray) return [];
   const out: { name: string; objectRef: ObjectId }[] = [];
@@ -580,7 +570,7 @@ function decodePdfString(value: PdfValue): string | undefined {
  * inline dictionary (resourceDict). We track both so direct dicts on
  * ancestor /Pages nodes propagate to descendant /Page leaves.
  */
-interface InheritedPageAttrs {
+type InheritedPageAttrs = {
   mediaBox?: PdfRect;
   cropBox?: PdfRect;
   rotate?: number;
@@ -588,7 +578,7 @@ interface InheritedPageAttrs {
   resourceDict?: PdfDict;
 }
 
-interface WalkPagesContext {
+type WalkPagesContext = {
   objects: Map<ObjectId, IndirectObject>;
   pages: PdfPageSummary[];
   visited: Set<ObjectId>;
@@ -611,11 +601,7 @@ function enumeratePages(
   return ctx.pages;
 }
 
-function walkPages(
-  ref: ObjectId,
-  ctx: WalkPagesContext,
-  inherited: InheritedPageAttrs,
-): void {
+function walkPages(ref: ObjectId, ctx: WalkPagesContext, inherited: InheritedPageAttrs): void {
   if (ctx.visited.has(ref)) return;
   ctx.visited.add(ref);
   const obj = ctx.objects.get(ref);
@@ -674,8 +660,7 @@ function buildPageSummary(
   dict: PdfDict,
   inherited: InheritedPageAttrs,
 ): PdfPageSummary {
-  const mediaBox =
-    readRect(dict.MediaBox) ?? inherited.mediaBox ?? { x: 0, y: 0, w: 0, h: 0 };
+  const mediaBox = readRect(dict.MediaBox) ?? inherited.mediaBox ?? { x: 0, y: 0, w: 0, h: 0 };
   const summary: PdfPageSummary = {
     pageNumber,
     objectRef: ref,
@@ -750,7 +735,7 @@ function enumerateFormFields(
 ): PdfFormField[] {
   if (!tree?.acroFormRef) return [];
   const acro = objects.get(tree.acroFormRef);
-  if (!acro || acro.value.kind !== "dict") return [];
+  if (acro?.value.kind !== "dict") return [];
   const fields = expectArray(acro.value.entries.Fields);
   if (!fields) return [];
   const out: PdfFormField[] = [];
@@ -772,7 +757,7 @@ function walkFormField(
   if (visited.has(ref)) return;
   visited.add(ref);
   const obj = objects.get(ref);
-  if (!obj || obj.value.kind !== "dict") return;
+  if (obj?.value.kind !== "dict") return;
   const dict = obj.value.entries;
   const partialName = readString(dict.T) ?? "";
   const fullName = partialName
@@ -825,13 +810,11 @@ function collectFileInfo(
   objects: Map<ObjectId, IndirectObject>,
 ): PdfFileInfo {
   const rootTrailerDict = structure.bodies[structure.bodies.length - 1]?.trailer.dict ?? {};
-  const signatures = documents.formFields.filter(
-    (f) => f.fieldType === "Sig" && f.signed,
-  ).length;
+  const signatures = documents.formFields.filter((f) => f.fieldType === "Sig" && f.signed).length;
   return {
     byteSize: bytes.length,
     pdfVersion: structure.header.version,
-    encrypted: !!rootTrailerDict.Encrypt,
+    encrypted: Boolean(rootTrailerDict.Encrypt),
     linearized: detectLinearized(reader),
     incrementalUpdates: Math.max(0, structure.bodies.length - 1),
     tagged: detectTagged(documents.tree, objects),
@@ -873,8 +856,8 @@ function detectXfa(
 ): boolean {
   if (!tree?.acroFormRef) return false;
   const acro = objects.get(tree.acroFormRef);
-  if (!acro || acro.value.kind !== "dict") return false;
-  return !!acro.value.entries.XFA;
+  if (acro?.value.kind !== "dict") return false;
+  return Boolean(acro.value.entries.XFA);
 }
 
 function detectJavaScript(
@@ -883,8 +866,8 @@ function detectJavaScript(
 ): boolean {
   if (!tree?.namesRef) return false;
   const names = objects.get(tree.namesRef);
-  if (!names || names.value.kind !== "dict") return false;
-  return !!names.value.entries.JavaScript;
+  if (names?.value.kind !== "dict") return false;
+  return Boolean(names.value.entries.JavaScript);
 }
 
 export { parseObjectId };

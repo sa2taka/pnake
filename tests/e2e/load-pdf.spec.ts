@@ -35,10 +35,7 @@ test.describe("pnake — load tracemonkey.pdf", () => {
     await input.setInputFiles(TRACEMONKEY);
 
     // Switch tree to Pages view, click first page.
-    await page
-      .getByRole("toolbar")
-      .locator("select")
-      .selectOption({ label: "Pages" });
+    await page.getByRole("toolbar").locator("select").selectOption({ label: "Pages" });
 
     const firstPageRow = page
       .locator(".treepanel-row")
@@ -63,10 +60,7 @@ test.describe("pnake — load tracemonkey.pdf", () => {
     await expect.poll(async () => Number(await canvas.getAttribute("height"))).toBeGreaterThan(0);
 
     // Switch to Content view; the operator list should be non-empty.
-    await page
-      .getByRole("toolbar")
-      .locator("select")
-      .selectOption({ label: "Content" });
+    await page.getByRole("toolbar").locator("select").selectOption({ label: "Content" });
     await expect(page.locator('[data-testid^="tree-op-"]').first()).toBeVisible();
   });
 
@@ -75,31 +69,26 @@ test.describe("pnake — load tracemonkey.pdf", () => {
     const input = page.getByTestId("file-input");
     await input.setInputFiles(TRACEMONKEY);
 
-    await page
-      .getByRole("toolbar")
-      .locator("select")
-      .selectOption({ label: "Content" });
+    await page.getByRole("toolbar").locator("select").selectOption({ label: "Content" });
     await expect(page.locator('[data-testid^="tree-op-"]').first()).toBeVisible();
     const page1Count = await page.locator('[data-testid^="tree-op-"]').count();
-    const page1Snippet = (
-      await page
-        .locator('[data-testid^="tree-op-"]')
-        .allInnerTexts()
-    ).slice(0, 8).join("\n");
+    const page1Snippet = (await page.locator('[data-testid^="tree-op-"]').allInnerTexts())
+      .slice(0, 8)
+      .join("\n");
 
     await page.getByRole("button", { name: "Next page" }).click();
     await expect(page.getByTestId("toolbar-page")).toContainText("2 /");
     // Wait until the new page's operator list has loaded with content.
-    await expect.poll(async () => {
-      const rows = await page.locator('[data-testid^="tree-op-"]').count();
-      if (rows === 0) return null;
-      const text = (
-        await page.locator('[data-testid^="tree-op-"]').allInnerTexts()
-      )
-        .slice(0, 8)
-        .join("\n");
-      return text !== page1Snippet ? text : null;
-    }).not.toBeNull();
+    await expect
+      .poll(async () => {
+        const rows = await page.locator('[data-testid^="tree-op-"]').count();
+        if (rows === 0) return null;
+        const text = (await page.locator('[data-testid^="tree-op-"]').allInnerTexts())
+          .slice(0, 8)
+          .join("\n");
+        return text !== page1Snippet ? text : null;
+      })
+      .not.toBeNull();
 
     const page2Count = await page.locator('[data-testid^="tree-op-"]').count();
     expect(page2Count).toBeGreaterThan(0);
@@ -129,10 +118,7 @@ test.describe("pnake — load tracemonkey.pdf", () => {
     await expect(detail).toContainText(/Operator/);
 
     // Switch the tree to Content mode and confirm the matching row is selected.
-    await page
-      .getByRole("toolbar")
-      .locator("select")
-      .selectOption({ label: "Content" });
+    await page.getByRole("toolbar").locator("select").selectOption({ label: "Content" });
     const selected = page.locator('[data-testid^="tree-op-"][data-selected="true"]');
     await expect(selected.first()).toBeVisible();
   });
@@ -146,10 +132,7 @@ test.describe("pnake — load tracemonkey.pdf", () => {
     await expect.poll(async () => Number(await canvas.getAttribute("width"))).toBeGreaterThan(0);
 
     // Switch to Content view and click the first operation row.
-    await page
-      .getByRole("toolbar")
-      .locator("select")
-      .selectOption({ label: "Content" });
+    await page.getByRole("toolbar").locator("select").selectOption({ label: "Content" });
     await page.locator('[data-testid^="tree-op-"]').first().click();
 
     const detail = page.getByTestId("detail-panel");
@@ -160,7 +143,9 @@ test.describe("pnake — load tracemonkey.pdf", () => {
     await humanTab.click();
     // The explanation dictionary returns Japanese text for known operators —
     // the tracemonkey first content op is almost always "q".
-    await expect(detail).toContainText(/グラフィックス状態|テキストブロック|フォント|線の太さ|位置/);
+    await expect(detail).toContainText(
+      /グラフィックス状態|テキストブロック|フォント|線の太さ|位置/,
+    );
   });
 
   test("Structure view falls back gracefully when the PDF is not tagged", async ({ page }) => {
@@ -168,10 +153,7 @@ test.describe("pnake — load tracemonkey.pdf", () => {
     const input = page.getByTestId("file-input");
     await input.setInputFiles(TRACEMONKEY);
 
-    await page
-      .getByRole("toolbar")
-      .locator("select")
-      .selectOption({ label: "Structure" });
+    await page.getByRole("toolbar").locator("select").selectOption({ label: "Structure" });
     const tree = page.getByTestId("tree-panel");
     await expect(tree).toContainText(/no logical structure/i);
   });

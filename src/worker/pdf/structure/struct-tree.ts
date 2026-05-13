@@ -14,6 +14,8 @@
  * tree cannot lock the walker.
  */
 
+import { expectArray, expectInt, expectName, expectRef } from "../parse/value-parser";
+import { asciiString } from "../io/byte-reader";
 import type {
   ObjectId,
   PdfStructTree,
@@ -22,15 +24,8 @@ import type {
   PdfValue,
 } from "../../../shared/ir-types";
 import type { IndirectObject } from "../parse/object-reader";
-import {
-  expectArray,
-  expectInt,
-  expectName,
-  expectRef,
-} from "../parse/value-parser";
-import { asciiString } from "../io/byte-reader";
 
-export interface BuildStructTreeInput {
+export type BuildStructTreeInput = {
   structTreeRootRef: ObjectId;
   objects: Map<ObjectId, IndirectObject>;
 }
@@ -39,7 +34,7 @@ export function buildStructTree(input: BuildStructTreeInput): PdfStructTree | un
   // The /StructTreeRoot dict itself is metadata, not an element. The actual
   // tree root lives in its /K entry.
   const obj = input.objects.get(input.structTreeRootRef);
-  if (!obj || obj.value.kind !== "dict") return undefined;
+  if (obj?.value.kind !== "dict") return undefined;
   const kEntry = obj.value.entries.K;
   if (!kEntry) return undefined;
 
@@ -81,7 +76,7 @@ function walkElement(
   if (visited.has(ref)) return undefined;
   visited.add(ref);
   const obj = objects.get(ref);
-  if (!obj || obj.value.kind !== "dict") return undefined;
+  if (obj?.value.kind !== "dict") return undefined;
   const dict = obj.value.entries;
   const structureType = expectName(dict.S) ?? fallbackType;
   const node: PdfStructTreeNode = {
@@ -157,7 +152,7 @@ function makeChild(
   if (value.kind === "ref") {
     // Could be either a StructElem or an OBJR/MCR depending on /Type.
     const obj = objects.get(value.target);
-    if (!obj || obj.value.kind !== "dict") return undefined;
+    if (obj?.value.kind !== "dict") return undefined;
     const type = expectName(obj.value.entries.Type);
     if (type === "OBJR" || type === "MCR") {
       return makeChild(obj.value, objects, visited);

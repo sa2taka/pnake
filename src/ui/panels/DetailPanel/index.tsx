@@ -1,22 +1,21 @@
 import { useEffect, useState } from "react";
 import { PanelHeader } from "../PanelHeader";
 import { useApp } from "../../state/AppContext";
-import type { PdfObjectDetail, PdfOperation } from "../../../shared/ir-types";
 import { isObjectId, isOperationId } from "../../../shared/ir-types";
 import { explainOperator } from "../../../shared/pdf-spec";
 import { PdfValueView } from "./PdfValueView";
+import type { PdfObjectDetail, PdfOperation } from "../../../shared/ir-types";
 import "./DetailPanel.css";
 
 type Tab = "human" | "technical" | "raw";
 
-export function DetailPanel(): JSX.Element {
+export function DetailPanel(): React.JSX.Element {
   const { state, parser, dispatch } = useApp();
   const [detail, setDetail] = useState<PdfObjectDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("technical");
 
-  const analysis =
-    state.document.status === "loaded" ? state.document.analysis : undefined;
+  const analysis = state.document.status === "loaded" ? state.document.analysis : undefined;
 
   // Look up the selected operation when applicable.
   const operation: PdfOperation | undefined = (() => {
@@ -39,7 +38,7 @@ export function DetailPanel(): JSX.Element {
       .then((d) => {
         if (!cancelled) setDetail(d);
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
       });
     return () => {
@@ -82,15 +81,13 @@ export function DetailPanel(): JSX.Element {
         {detail && tab === "human" && <HumanView detail={detail} />}
         {detail && tab === "technical" && <TechnicalView detail={detail} dispatch={dispatch} />}
         {detail && tab === "raw" && <RawView detail={detail} />}
-        {operation && (
-          <OperationView operation={operation} tab={tab} />
-        )}
+        {operation && <OperationView operation={operation} tab={tab} />}
       </div>
     </div>
   );
 }
 
-function HumanView({ detail }: { detail: PdfObjectDetail }): JSX.Element {
+function HumanView({ detail }: { detail: PdfObjectDetail }): React.JSX.Element {
   return (
     <div className="detailpanel-human">
       <p>
@@ -105,8 +102,7 @@ function HumanView({ detail }: { detail: PdfObjectDetail }): JSX.Element {
       </p>
       {detail.hasStream && (
         <p>
-          This object carries a stream. Switch to the bottom drawer to inspect raw or decoded
-          bytes.
+          This object carries a stream. Switch to the bottom drawer to inspect raw or decoded bytes.
         </p>
       )}
     </div>
@@ -119,7 +115,7 @@ function TechnicalView({
 }: {
   detail: PdfObjectDetail;
   dispatch: ReturnType<typeof useApp>["dispatch"];
-}): JSX.Element {
+}): React.JSX.Element {
   return (
     <div className="detailpanel-technical">
       <dl className="detailpanel-meta">
@@ -143,36 +139,24 @@ function TechnicalView({
       <h3 className="detailpanel-section-title">Value</h3>
       <PdfValueView
         value={detail.value}
-        onRefClick={(id) =>
-          dispatch({ type: "select", nodeId: id, origin: "detail" })
-        }
+        onRefClick={(id) => dispatch({ type: "select", nodeId: id, origin: "detail" })}
       />
     </div>
   );
 }
 
-function RawView({ detail }: { detail: PdfObjectDetail }): JSX.Element {
-  return (
-    <pre className="detailpanel-raw">{detail.rawText}</pre>
-  );
+function RawView({ detail }: { detail: PdfObjectDetail }): React.JSX.Element {
+  return <pre className="detailpanel-raw">{detail.rawText}</pre>;
 }
 
-function OperationView({
-  operation,
-  tab,
-}: {
-  operation: PdfOperation;
-  tab: Tab;
-}): JSX.Element {
+function OperationView({ operation, tab }: { operation: PdfOperation; tab: Tab }): React.JSX.Element {
   const explanation = explainOperator(operation);
   if (tab === "human") {
     return (
       <div className="detailpanel-human">
         <p>{explanation.human}</p>
         {explanation.specSection && (
-          <p className="detailpanel-spec-ref">
-            PDF 仕様: {explanation.specSection}
-          </p>
+          <p className="detailpanel-spec-ref">PDF 仕様: {explanation.specSection}</p>
         )}
       </div>
     );
@@ -209,9 +193,7 @@ function OperationView({
       </dl>
       <h3 className="detailpanel-section-title">Operands</h3>
       <ul className="detailpanel-operands">
-        {operation.operands.length === 0 && (
-          <li className="detailpanel-empty">(no operands)</li>
-        )}
+        {operation.operands.length === 0 && <li className="detailpanel-empty">(no operands)</li>}
         {operation.operands.map((operand, i) => (
           <li key={i}>
             <PdfValueView value={operand} />

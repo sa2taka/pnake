@@ -7,8 +7,8 @@
  * and register here.
  */
 
-import type { PdfDict, PdfFilter, PdfValue } from "../../../shared/ir-types";
 import { flateDecode } from "./flate";
+import type { PdfDict, PdfFilter, PdfValue } from "../../../shared/ir-types";
 
 export class UnsupportedFilterError extends Error {
   constructor(public filter: PdfFilter) {
@@ -24,7 +24,7 @@ export class UnsupportedFilterError extends Error {
  * single dict (one filter case) or an array of dicts.
  */
 export function extractDecodeParms(streamDict: PdfDict): (PdfDict | undefined)[] {
-  const entry = streamDict["DecodeParms"] ?? streamDict["DP"];
+  const entry = streamDict.DecodeParms ?? streamDict.DP;
   if (!entry) return [];
   if (entry.kind === "dict") return [entry.entries];
   if (entry.kind === "array") {
@@ -66,8 +66,7 @@ export async function decodeStream(
 
 function asciiHexDecode(input: Uint8Array): Uint8Array {
   const nibbles: number[] = [];
-  for (let i = 0; i < input.length; i++) {
-    const b = input[i] ?? 0;
+  for (const b of input) {
     if (b === 0x3e) break; // '>' terminator
     if (b === 0x20 || b === 0x09 || b === 0x0a || b === 0x0d) continue;
     const n = hexNibble(b);
@@ -85,8 +84,7 @@ function asciiHexDecode(input: Uint8Array): Uint8Array {
 function ascii85Decode(input: Uint8Array): Uint8Array {
   const out: number[] = [];
   let group: number[] = [];
-  for (let i = 0; i < input.length; i++) {
-    const b = input[i] ?? 0;
+  for (const b of input) {
     if (b === 0x7e) break; // '~' which starts the '~>' terminator
     if (b === 0x20 || b === 0x09 || b === 0x0a || b === 0x0d) continue;
     if (b === 0x7a) {
@@ -125,7 +123,7 @@ function hexNibble(b: number): number {
 
 /** Helper: read /Length from a stream dict to allocate the right buffer. */
 export function readStreamLength(dict: PdfDict): number | undefined {
-  const len = dict["Length"];
+  const len = dict.Length;
   if (!len) return undefined;
   if (len.kind === "int") return len.value;
   if (len.kind === "real") return Math.trunc(len.value);

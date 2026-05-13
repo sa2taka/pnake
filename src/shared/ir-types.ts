@@ -18,12 +18,12 @@ export type ObjectId = `obj:${number}:${number}`;
 export type PageId = `page:${number}`;
 export type OperationId = `page:${number}:op:${number}`;
 
-export interface ByteRange {
+export type ByteRange = {
   start: number;
   end: number;
 }
 
-export interface PdfRect {
+export type PdfRect = {
   x: number;
   y: number;
   w: number;
@@ -47,7 +47,7 @@ export type PdfFilter =
   | "Crypt"
   | { kind: "unknown"; name: string };
 
-export interface StreamHandle {
+export type StreamHandle = {
   objectRef: ObjectId;
   filters: PdfFilter[];
   length: number;
@@ -77,7 +77,7 @@ export type PdfDict = Record<string, PdfValue>;
 
 // ---- File structure ----
 
-export interface PdfFileInfo {
+export type PdfFileInfo = {
   byteSize: number;
   sha256?: string;
   pdfVersion: string;
@@ -95,7 +95,7 @@ export interface PdfFileInfo {
 
 export type PdfFormFieldType = "Tx" | "Btn" | "Ch" | "Sig" | "Unknown";
 
-export interface PdfFormField {
+export type PdfFormField = {
   objectRef: ObjectId;
   name: string;
   fullName: string;
@@ -104,7 +104,7 @@ export interface PdfFormField {
   signed: boolean;
 }
 
-export interface PdfXrefEntry {
+export type PdfXrefEntry = {
   objectNumber: number;
   generation: number;
   type: "n" | "f" | "compressed";
@@ -117,12 +117,12 @@ export type PdfXref =
   | { kind: "table"; range: ByteRange; entries: PdfXrefEntry[] }
   | { kind: "stream"; range: ByteRange; objectRef: ObjectId; entries: PdfXrefEntry[] };
 
-export interface PdfTrailer {
+export type PdfTrailer = {
   range: ByteRange;
   dict: PdfDict;
 }
 
-export interface PdfBody {
+export type PdfBody = {
   index: number;
   range: ByteRange;
   xref: PdfXref;
@@ -130,7 +130,7 @@ export interface PdfBody {
   startxrefOffset: number;
 }
 
-export interface PdfFileStructure {
+export type PdfFileStructure = {
   header: { range: ByteRange; raw: string };
   bodies: PdfBody[];
   eofMarkers: ByteRange[];
@@ -165,7 +165,7 @@ export type PdfObjectKind =
   | "xrefStream"
   | "other";
 
-export interface PdfObjectSummary {
+export type PdfObjectSummary = {
   id: ObjectId;
   number: number;
   generation: number;
@@ -176,14 +176,14 @@ export interface PdfObjectSummary {
   hasStream: boolean;
 }
 
-export interface PdfObjectDetail extends PdfObjectSummary {
+export type PdfObjectDetail = {
   value: PdfValue;
   rawText: string;
-}
+} & PdfObjectSummary
 
 // ---- Document graph ----
 
-export interface PdfDocumentTree {
+export type PdfDocumentTree = {
   catalogRef: ObjectId;
   metadata?: ObjectId;
   info?: ObjectId;
@@ -197,7 +197,7 @@ export interface PdfDocumentTree {
 
 // ---- Pages ----
 
-export interface PdfPageBoxes {
+export type PdfPageBoxes = {
   mediaBox: PdfRect;
   cropBox?: PdfRect;
   bleedBox?: PdfRect;
@@ -205,7 +205,7 @@ export interface PdfPageBoxes {
   artBox?: PdfRect;
 }
 
-export interface PdfPageSummary {
+export type PdfPageSummary = {
   pageNumber: number;
   objectRef: ObjectId;
   boxes: PdfPageBoxes;
@@ -225,17 +225,25 @@ export interface PdfPageSummary {
 
 // ---- Resources ----
 
-export interface PdfFontResource {
+export type PdfFontResource = {
   objectRef: ObjectId;
   name: string;
-  subtype: "Type0" | "Type1" | "Type3" | "MMType1" | "TrueType" | "CIDFontType0" | "CIDFontType2" | "Unknown";
+  subtype:
+    | "Type0"
+    | "Type1"
+    | "Type3"
+    | "MMType1"
+    | "TrueType"
+    | "CIDFontType0"
+    | "CIDFontType2"
+    | "Unknown";
   baseFont?: string;
   encoding?: string;
   toUnicodeRef?: ObjectId;
   embedded: boolean;
 }
 
-export interface PdfXObjectResource {
+export type PdfXObjectResource = {
   objectRef: ObjectId;
   name: string;
   subtype: "Image" | "Form" | "PS" | "Unknown";
@@ -250,7 +258,7 @@ export interface PdfXObjectResource {
   formMatrix?: Matrix;
 }
 
-export interface PdfResolvedResources {
+export type PdfResolvedResources = {
   pageNumber: number;
   fonts: Record<string, PdfFontResource>;
   xobjects: Record<string, PdfXObjectResource>;
@@ -283,7 +291,7 @@ export type PdfOpCategory =
   | "type3-font"
   | "unknown";
 
-export interface PdfOperation {
+export type PdfOperation = {
   id: string;
   sequence: number;
   operator: string;
@@ -298,7 +306,7 @@ export interface PdfOperation {
 
 // ---- Logical structure (tagged PDF) ----
 
-export interface PdfStructTreeNode {
+export type PdfStructTreeNode = {
   id: string;
   objectRef?: ObjectId;
   structureType: string;
@@ -314,13 +322,13 @@ export type PdfStructTreeChild =
   | { kind: "mcid"; mcid: number; page?: ObjectId }
   | { kind: "objr"; ref: ObjectId; page?: ObjectId };
 
-export interface PdfStructTree {
+export type PdfStructTree = {
   root: PdfStructTreeNode;
 }
 
 // ---- Visual elements (overlay-bound) ----
 
-export interface PdfVisualElement {
+export type PdfVisualElement = {
   id: string;
   kind: "text-run" | "image" | "path" | "form-xobject" | "annotation" | "clip";
   bbox: PdfRect;
@@ -331,7 +339,7 @@ export interface PdfVisualElement {
 
 // ---- Warnings ----
 
-export interface PdfWarning {
+export type PdfWarning = {
   id: string;
   severity: "info" | "warn" | "error";
   category:
@@ -353,7 +361,7 @@ export interface PdfWarning {
 
 // ---- Top-level analysis manifest ----
 
-export interface PdfAnalysis {
+export type PdfAnalysis = {
   fileInfo: PdfFileInfo;
   fileStructure: PdfFileStructure;
   objectsIndex: Record<ObjectId, PdfObjectSummary>;

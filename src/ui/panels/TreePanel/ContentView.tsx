@@ -2,11 +2,10 @@ import { useEffect, useMemo, useRef } from "react";
 import { useApp } from "../../state/AppContext";
 import type { PdfOperation, PdfValue } from "../../../shared/ir-types";
 
-export function ContentView(): JSX.Element {
+export function ContentView(): React.JSX.Element {
   const { state, dispatch } = useApp();
   const pageOps = state.pageOps;
-  const operations =
-    pageOps.status === "loaded" ? pageOps.result.operations : [];
+  const operations = pageOps.status === "loaded" ? pageOps.result.operations : [];
   const selectedRef = useRef<HTMLLIElement | null>(null);
 
   // Scroll the selected row into view when selection moves to this page.
@@ -22,9 +21,16 @@ export function ContentView(): JSX.Element {
   const rows = useMemo(() => {
     let depth = 0;
     return operations.map((op) => {
-      if (op.operator === "Q" || op.operator === "ET" || op.operator === "EMC") depth = Math.max(0, depth - 1);
+      if (op.operator === "Q" || op.operator === "ET" || op.operator === "EMC")
+        depth = Math.max(0, depth - 1);
       const row = { op, depth };
-      if (op.operator === "q" || op.operator === "BT" || op.operator === "BMC" || op.operator === "BDC") depth++;
+      if (
+        op.operator === "q" ||
+        op.operator === "BT" ||
+        op.operator === "BMC" ||
+        op.operator === "BDC"
+      )
+        depth++;
       return row;
     });
   }, [operations]);
@@ -51,9 +57,7 @@ export function ContentView(): JSX.Element {
             className="treepanel-row"
             data-testid={`tree-op-${op.sequence}`}
             data-selected={selected}
-            onClick={() =>
-              dispatch({ type: "select", nodeId: op.id, origin: "tree" })
-            }
+            onClick={() => dispatch({ type: "select", nodeId: op.id, origin: "tree" })}
           >
             <span className="treepanel-row-id" style={{ paddingLeft: rowDepth * 12 }}>
               {op.sequence}

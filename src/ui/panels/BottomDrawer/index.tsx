@@ -13,7 +13,7 @@ const TABS: { id: BottomTab; label: string }[] = [
 
 const MAX_PREVIEW_BYTES = 4096;
 
-export function BottomDrawer(): JSX.Element {
+export function BottomDrawer(): React.JSX.Element {
   const { state, parser, dispatch } = useApp();
   const tab = state.bottomTab;
 
@@ -56,7 +56,7 @@ function StreamPreview({
   tab: "raw" | "decoded";
   parser: ReturnType<typeof useApp>["parser"];
   selectedId: string | undefined;
-}): JSX.Element {
+}): React.JSX.Element {
   const [bytes, setBytes] = useState<Uint8Array | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -74,7 +74,7 @@ function StreamPreview({
         setBytes(new Uint8Array(result.bytes));
         setLoading(false);
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : String(err));
         setLoading(false);
@@ -96,7 +96,7 @@ function StreamPreview({
   return <HexView bytes={bytes} />;
 }
 
-function HexView({ bytes }: { bytes: Uint8Array }): JSX.Element {
+function HexView({ bytes }: { bytes: Uint8Array }): React.JSX.Element {
   const visible = bytes.subarray(0, MAX_PREVIEW_BYTES);
   const lines: { offset: number; hex: string; ascii: string }[] = [];
   for (let i = 0; i < visible.length; i += 16) {
@@ -117,9 +117,7 @@ function HexView({ bytes }: { bytes: Uint8Array }): JSX.Element {
     <div className="bottomdrawer-hex">
       {lines.map((l) => (
         <div key={l.offset} className="bottomdrawer-hex-row">
-          <span className="bottomdrawer-hex-offset">
-            {l.offset.toString(16).padStart(8, "0")}
-          </span>
+          <span className="bottomdrawer-hex-offset">{l.offset.toString(16).padStart(8, "0")}</span>
           <span className="bottomdrawer-hex-bytes">{l.hex}</span>
           <span className="bottomdrawer-hex-ascii">{l.ascii}</span>
         </div>

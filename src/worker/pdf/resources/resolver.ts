@@ -7,6 +7,13 @@
  * size, filters, ToUnicode pointer, etc.).
  */
 
+import {
+  expectArray,
+  expectInt,
+  expectName,
+  expectRef,
+  extractFilters,
+} from "../parse/value-parser";
 import type {
   ObjectId,
   PdfDict,
@@ -17,15 +24,8 @@ import type {
   PdfXObjectResource,
 } from "../../../shared/ir-types";
 import type { IndirectObject } from "../parse/object-reader";
-import {
-  expectArray,
-  expectInt,
-  expectName,
-  expectRef,
-  extractFilters,
-} from "../parse/value-parser";
 
-export interface ResolveInput {
+export type ResolveInput = {
   pageNumber: number;
   /** Page-local /Resources reference (preferred when present). */
   resourceRef?: ObjectId;
@@ -116,7 +116,7 @@ function collectFonts(
     const ref = expectRef(slot);
     if (!ref) continue;
     const obj = objects.get(ref);
-    if (!obj || obj.value.kind !== "dict") {
+    if (obj?.value.kind !== "dict") {
       result[name] = {
         objectRef: ref,
         name,
@@ -172,10 +172,7 @@ function extractEncodingName(
   return undefined;
 }
 
-function detectEmbeddedFont(
-  fontDict: PdfDict,
-  objects: Map<ObjectId, IndirectObject>,
-): boolean {
+function detectEmbeddedFont(fontDict: PdfDict, objects: Map<ObjectId, IndirectObject>): boolean {
   // PDF embeds font programs via /FontDescriptor's /FontFile / /FontFile2 /
   // /FontFile3. For Type0 fonts we hop through /DescendantFonts first.
   const visited = new Set<ObjectId>();

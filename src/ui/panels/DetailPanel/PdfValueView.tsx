@@ -1,12 +1,12 @@
 import { useState } from "react";
 import type { ObjectId, PdfValue } from "../../../shared/ir-types";
 
-interface PdfValueViewProps {
+type PdfValueViewProps = {
   value: PdfValue;
   onRefClick?: (objectId: ObjectId) => void;
 }
 
-export function PdfValueView({ value, onRefClick }: PdfValueViewProps): JSX.Element {
+export function PdfValueView({ value, onRefClick }: PdfValueViewProps): React.JSX.Element {
   return (
     <div className="pdfvalue">
       <Value value={value} onRefClick={onRefClick} depth={0} />
@@ -22,7 +22,7 @@ function Value({
   value: PdfValue;
   onRefClick?: (id: ObjectId) => void;
   depth: number;
-}): JSX.Element {
+}): React.JSX.Element {
   switch (value.kind) {
     case "null":
       return <span className="pdfvalue-null">null</span>;
@@ -50,7 +50,11 @@ function Value({
         <Collection
           open="<<"
           close=">>"
-          items={Object.entries(value.entries).map(([k, v]) => ({ key: k, label: `/${k}`, value: v }))}
+          items={Object.entries(value.entries).map(([k, v]) => ({
+            key: k,
+            label: `/${k}`,
+            value: v,
+          }))}
           onRefClick={onRefClick}
           depth={depth}
         />
@@ -71,14 +75,19 @@ function Value({
         <div className="pdfvalue-stream">
           <span className="pdfvalue-name">stream</span>{" "}
           <span className="pdfvalue-comment">
-            {`(filters: ${value.handle.filters
-              .map((f) => (typeof f === "string" ? f : f.name))
-              .join(", ") || "none"}; length: ${value.handle.length})`}
+            {`(filters: ${
+              value.handle.filters.map((f) => (typeof f === "string" ? f : f.name)).join(", ") ||
+              "none"
+            }; length: ${value.handle.length})`}
           </span>
           <Collection
             open="<<"
             close=">>"
-            items={Object.entries(value.dict).map(([k, v]) => ({ key: k, label: `/${k}`, value: v }))}
+            items={Object.entries(value.dict).map(([k, v]) => ({
+              key: k,
+              label: `/${k}`,
+              value: v,
+            }))}
             onRefClick={onRefClick}
             depth={depth}
           />
@@ -104,10 +113,14 @@ function Collection({
   items: { key: string; label?: string; value: PdfValue }[];
   onRefClick?: (id: ObjectId) => void;
   depth: number;
-}): JSX.Element {
+}): React.JSX.Element {
   const [collapsed, setCollapsed] = useState(depth > 1);
   if (items.length === 0) {
-    return <span className="pdfvalue-empty">{open} {close}</span>;
+    return (
+      <span className="pdfvalue-empty">
+        {open} {close}
+      </span>
+    );
   }
   return (
     <span className="pdfvalue-collection">
@@ -119,7 +132,10 @@ function Collection({
       >
         {collapsed ? "▸" : "▾"} {open}
         {collapsed && (
-          <span className="pdfvalue-comment"> {items.length} {open === "[" ? "items" : "entries"} </span>
+          <span className="pdfvalue-comment">
+            {" "}
+            {items.length} {open === "[" ? "items" : "entries"}{" "}
+          </span>
         )}
         {collapsed && close}
       </button>
@@ -139,14 +155,19 @@ function Collection({
   );
 }
 
-function StringView({ value }: { value: { kind: "string"; raw: Uint8Array; hex?: boolean } }): JSX.Element {
+function StringView({
+  value,
+}: {
+  value: { kind: "string"; raw: Uint8Array; hex?: boolean };
+}): React.JSX.Element {
   const text = tryDecode(value.raw);
   if (text != null) {
     return <span className="pdfvalue-string">{`(${escape(text)})`}</span>;
   }
   return (
     <span className="pdfvalue-string-hex">
-      &lt;{Array.from(value.raw)
+      &lt;
+      {Array.from(value.raw)
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("")
         .slice(0, 64)}
@@ -157,8 +178,7 @@ function StringView({ value }: { value: { kind: "string"; raw: Uint8Array; hex?:
 
 function tryDecode(raw: Uint8Array): string | null {
   let s = "";
-  for (let i = 0; i < raw.length; i++) {
-    const b = raw[i] ?? 0;
+  for (const b of raw) {
     if (b < 0x20 || b > 0x7e) return null;
     s += String.fromCharCode(b);
   }
@@ -172,5 +192,7 @@ function escape(s: string): string {
 function parseNumGen(id: string): string {
   const m = /^obj:(\d+):(\d+)$/.exec(id);
   if (!m) return id;
-  return `${m[1]} ${m[2]} R`;
+  // Capture groups are guaranteed by the pattern; assert to keep the
+  // template-expression rule happy.
+  return `${m[1] ?? ""} ${m[2] ?? ""} R`;
 }

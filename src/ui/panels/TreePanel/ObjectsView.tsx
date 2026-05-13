@@ -5,12 +5,11 @@ import type { PdfObjectKind, PdfObjectSummary } from "../../../shared/ir-types";
 
 const ROW_HEIGHT = 24;
 
-export function ObjectsView(): JSX.Element {
+export function ObjectsView(): React.JSX.Element {
   const { state, dispatch } = useApp();
   const [filter, setFilter] = useState("");
 
-  const analysis =
-    state.document.status === "loaded" ? state.document.analysis : undefined;
+  const analysis = state.document.status === "loaded" ? state.document.analysis : undefined;
 
   const objects = useMemo(() => {
     if (!analysis) return [];
@@ -22,7 +21,7 @@ export function ObjectsView(): JSX.Element {
       (o) =>
         o.id.includes(q) ||
         o.type.includes(q) ||
-        o.hint?.toLowerCase().includes(q) ||
+        (o.hint?.toLowerCase().includes(q) ?? false) ||
         o.number.toString().includes(q),
     );
   }, [analysis, filter]);
@@ -63,9 +62,7 @@ export function ObjectsView(): JSX.Element {
               <ObjectRow
                 obj={obj}
                 selected={obj.id === state.selectedNodeId}
-                onSelect={() =>
-                  dispatch({ type: "select", nodeId: obj.id, origin: "tree" })
-                }
+                onSelect={() => dispatch({ type: "select", nodeId: obj.id, origin: "tree" })}
               />
             </div>
           ))}
@@ -75,13 +72,13 @@ export function ObjectsView(): JSX.Element {
   );
 }
 
-interface ObjectRowProps {
+type ObjectRowProps = {
   obj: PdfObjectSummary;
   selected: boolean;
   onSelect: () => void;
 }
 
-function ObjectRow({ obj, selected, onSelect }: ObjectRowProps): JSX.Element {
+function ObjectRow({ obj, selected, onSelect }: ObjectRowProps): React.JSX.Element {
   return (
     <div
       role="option"
@@ -105,7 +102,7 @@ function ObjectRow({ obj, selected, onSelect }: ObjectRowProps): JSX.Element {
   );
 }
 
-function KindChip({ kind, stream }: { kind: PdfObjectKind; stream: boolean }): JSX.Element {
+function KindChip({ kind, stream }: { kind: PdfObjectKind; stream: boolean }): React.JSX.Element {
   return (
     <span className="treepanel-chip" data-kind={kind}>
       {chipLabel(kind)}

@@ -38,7 +38,7 @@ describe("App integration (InProcessParserService)", () => {
     const parser = new InProcessParserService();
     render(<App parserService={parser} />);
 
-    const fileInput = screen.getByTestId("file-input") as HTMLInputElement;
+    const fileInput = screen.getByTestId("file-input");
     Object.defineProperty(fileInput, "files", {
       value: [makePdf()],
       configurable: true,

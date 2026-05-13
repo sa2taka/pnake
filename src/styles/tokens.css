@@ -69,11 +69,9 @@
 
   /* Type */
   --font-sans:
-    -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Helvetica Neue",
-    system-ui, sans-serif;
+    -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Helvetica Neue", system-ui, sans-serif;
   --font-mono:
-    "JetBrains Mono", "SF Mono", "Berkeley Mono", "Menlo", "Consolas",
-    ui-monospace, monospace;
+    "JetBrains Mono", "SF Mono", "Berkeley Mono", "Menlo", "Consolas", ui-monospace, monospace;
 
   --fz-xs: 11px;
   --fz-sm: 12px;

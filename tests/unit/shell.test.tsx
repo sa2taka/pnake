@@ -1,6 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, afterEach  } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import { afterEach } from "vitest";
 import { App } from "../../src/App";
 
 afterEach(cleanup);

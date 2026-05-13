@@ -11,14 +11,10 @@
  * rest of the UI never knows which one it is talking to.
  */
 
-import type { ObjectId, PdfObjectDetail } from "../../shared/ir-types";
-import type {
-  LoadResult,
-  PageOperationsResult,
-  StreamResult,
-} from "../../shared/protocol";
 import { ParserSession } from "../../core/parser-session";
 import { WorkerClient } from "../workerClient";
+import type { ObjectId, PdfObjectDetail } from "../../shared/ir-types";
+import type { LoadResult, PageOperationsResult, StreamResult } from "../../shared/protocol";
 
 /**
  * Transport-agnostic call options.
@@ -29,16 +25,12 @@ import { WorkerClient } from "../workerClient";
  * in-flight work keeps running. The in-process implementation honours
  * `signal` by throwing AbortError at the natural async boundaries.
  */
-export interface CallOptions {
+export type CallOptions = {
   signal?: AbortSignal;
 }
 
-export interface ParserService {
-  load(
-    buffer: ArrayBuffer,
-    fileName?: string,
-    options?: CallOptions,
-  ): Promise<LoadResult>;
+export type ParserService = {
+  load(buffer: ArrayBuffer, fileName?: string, options?: CallOptions): Promise<LoadResult>;
   getObjectDetail(objectId: ObjectId, options?: CallOptions): Promise<PdfObjectDetail>;
   getStream(
     objectId: ObjectId,
@@ -52,18 +44,11 @@ export interface ParserService {
 export class WorkerParserService implements ParserService {
   private readonly client = WorkerClient.spawn();
 
-  load(
-    buffer: ArrayBuffer,
-    fileName?: string,
-    options?: CallOptions,
-  ): Promise<LoadResult> {
+  load(buffer: ArrayBuffer, fileName?: string, options?: CallOptions): Promise<LoadResult> {
     return this.client.load(buffer, fileName, options);
   }
 
-  getObjectDetail(
-    objectId: ObjectId,
-    options?: CallOptions,
-  ): Promise<PdfObjectDetail> {
+  getObjectDetail(objectId: ObjectId, options?: CallOptions): Promise<PdfObjectDetail> {
     return this.client.getObjectDetail(objectId, options);
   }
 
@@ -75,10 +60,7 @@ export class WorkerParserService implements ParserService {
     return this.client.getStream(objectId, mode, options);
   }
 
-  getPageOperations(
-    pageNumber: number,
-    options?: CallOptions,
-  ): Promise<PageOperationsResult> {
+  getPageOperations(pageNumber: number, options?: CallOptions): Promise<PageOperationsResult> {
     return this.client.getPageOperations(pageNumber, options);
   }
 
@@ -90,21 +72,15 @@ export class WorkerParserService implements ParserService {
 export class InProcessParserService implements ParserService {
   private readonly session = new ParserSession();
 
-  async load(
-    buffer: ArrayBuffer,
-    _fileName?: string,
-    options?: CallOptions,
-  ): Promise<LoadResult> {
+  async load(buffer: ArrayBuffer, _fileName?: string, options?: CallOptions): Promise<LoadResult> {
     throwIfAborted(options?.signal);
     const result = await this.session.load(buffer);
     throwIfAborted(options?.signal);
     return result;
   }
 
-  async getObjectDetail(
-    objectId: ObjectId,
-    options?: CallOptions,
-  ): Promise<PdfObjectDetail> {
+  // eslint-disable-next-line @typescript-eslint/require-await -- async wraps the sync throwIfAborted into a Promise rejection so callers get a uniform shape.
+  async getObjectDetail(objectId: ObjectId, options?: CallOptions): Promise<PdfObjectDetail> {
     throwIfAborted(options?.signal);
     return this.session.getObjectDetail(objectId);
   }

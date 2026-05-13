@@ -10,7 +10,7 @@ async function deflate(input: Uint8Array): Promise<Uint8Array> {
       c.close();
     },
   });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const encoded = source.pipeThrough(new CompressionStream("deflate") as any);
   return new Uint8Array(await new Response(encoded).arrayBuffer());
 }
@@ -41,8 +41,7 @@ describe("parseObjectStream", () => {
     const streamPayload = concat([newHeader, body]);
     const compressed = await deflate(streamPayload);
 
-    const objHeader =
-      `9 0 obj\n<< /Type /ObjStm /N 2 /First ${newHeader.length} /Filter /FlateDecode /Length ${compressed.length} >>\nstream\n`;
+    const objHeader = `9 0 obj\n<< /Type /ObjStm /N 2 /First ${newHeader.length} /Filter /FlateDecode /Length ${compressed.length} >>\nstream\n`;
     const pdfBytes = concat([objHeader, compressed, "\nendstream\nendobj\n"]);
 
     const reader = new ByteReader(pdfBytes);

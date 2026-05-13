@@ -11,18 +11,9 @@
  * needs them belongs in a transport adapter, not here.
  */
 
-import type {
-  ObjectId,
-  PdfDict,
-  PdfFilter,
-  PdfObjectDetail,
-  PdfValue,
-} from "../shared/ir-types";
-import type { LoadResult, PageOperationsResult, StreamResult } from "../shared/protocol";
-import { ByteReader, asciiString } from "../worker/pdf/io/byte-reader";
+import { asciiString } from "../worker/pdf/io/byte-reader";
 import { parseContentStream } from "../worker/pdf/content/parser";
 import { buildVisualElements } from "../worker/pdf/content/visual-elements";
-import type { IndirectObject } from "../worker/pdf/parse/object-reader";
 import { extractFilters } from "../worker/pdf/parse/value-parser";
 import { resolveResources } from "../worker/pdf/resources/resolver";
 import { parseToUnicodeCMap, type ToUnicodeCMap } from "../worker/pdf/resources/cmap";
@@ -30,8 +21,12 @@ import { decodeStream, extractDecodeParms } from "../worker/pdf/streams/decode";
 import { parsePdf } from "../worker/pdf/structure/manifest";
 import { buildStructTree } from "../worker/pdf/structure/struct-tree";
 import { LruCache } from "./lru-cache";
+import type { ByteReader} from "../worker/pdf/io/byte-reader";
+import type { IndirectObject } from "../worker/pdf/parse/object-reader";
+import type { LoadResult, PageOperationsResult, StreamResult } from "../shared/protocol";
+import type { ObjectId, PdfDict, PdfFilter, PdfObjectDetail, PdfValue } from "../shared/ir-types";
 
-interface State {
+type State = {
   bytes: Uint8Array;
   reader: ByteReader;
   objects: Map<ObjectId, IndirectObject>;
@@ -49,9 +44,7 @@ interface State {
 export class StaleSessionError extends Error {
   readonly name = "StaleSessionError";
   constructor(operation: string, oldSession: number, newSession: number) {
-    super(
-      `Operation ${operation} dropped: session ${oldSession} was superseded by ${newSession}.`,
-    );
+    super(`Operation ${operation} dropped: session ${oldSession} was superseded by ${newSession}.`);
   }
 }
 
@@ -72,9 +65,7 @@ export class ParserSession {
     const structTree = structTreeRoot
       ? buildStructTree({ structTreeRootRef: structTreeRoot, objects })
       : undefined;
-    const result: LoadResult = structTree
-      ? { analysis, structTree }
-      : { analysis };
+    const result: LoadResult = structTree ? { analysis, structTree } : { analysis };
     this.state = {
       bytes,
       reader,
@@ -250,7 +241,7 @@ export class ParserSession {
   private async decodeStreamObject(objectId: ObjectId): Promise<Uint8Array | null> {
     const s = this.require();
     const obj = s.objects.get(objectId);
-    if (!obj || obj.value.kind !== "stream" || !obj.streamRange) return null;
+    if (obj?.value.kind !== "stream" || !obj.streamRange) return null;
     const dict = obj.value.dict;
     const raw = s.bytes.subarray(obj.streamRange.start, obj.streamRange.end);
     return this.decodeCached(objectId, raw, extractFilters(dict), dict);

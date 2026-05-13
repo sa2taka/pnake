@@ -8,9 +8,9 @@
  * found by scanning is treated as in-use.
  */
 
-import type { PdfXrefEntry } from "../../../shared/ir-types";
-import { ByteReader } from "../io/byte-reader";
 import { Lexer } from "../lex/lexer";
+import type { ByteReader } from "../io/byte-reader";
+import type { PdfXrefEntry } from "../../../shared/ir-types";
 import type { Token } from "../lex/tokens";
 
 export function scanIndirectObjectHeaders(reader: ByteReader): PdfXrefEntry[] {

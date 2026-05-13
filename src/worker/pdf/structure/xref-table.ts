@@ -17,6 +17,11 @@
  * subsections so the rest of the file can still be inspected.
  */
 
+import { asciiString, isWhitespace, toBytes } from "../io/byte-reader";
+import { Lexer } from "../lex/lexer";
+import { TokenStream } from "../lex/token-stream";
+import { ValueParser } from "../parse/value-parser";
+import type { ByteReader} from "../io/byte-reader";
 import type {
   ByteRange,
   PdfDict,
@@ -25,15 +30,11 @@ import type {
   PdfXref,
   PdfXrefEntry,
 } from "../../../shared/ir-types";
-import { ByteReader, asciiString, isWhitespace, toBytes } from "../io/byte-reader";
-import { Lexer } from "../lex/lexer";
-import { TokenStream } from "../lex/token-stream";
-import { ValueParser } from "../parse/value-parser";
 
 const KW_XREF = toBytes("xref");
 const KW_TRAILER = toBytes("trailer");
 
-export interface XrefAndTrailer {
+export type XrefAndTrailer = {
   xref: PdfXref;
   trailer: PdfTrailer;
   warnings: PdfWarning[];

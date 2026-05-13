@@ -12,14 +12,10 @@
 
 import { useMemo } from "react";
 import { useApp } from "../state/AppContext";
-import type {
-  PdfPageSummary,
-  PdfRect,
-  PdfVisualElement,
-} from "../../shared/ir-types";
+import type { PdfPageSummary, PdfRect, PdfVisualElement } from "../../shared/ir-types";
 import "./RenderOverlay.css";
 
-interface RenderOverlayProps {
+type RenderOverlayProps = {
   page: PdfPageSummary;
   elements: PdfVisualElement[];
   /** Canvas backing-store size in pixels (already includes scale). */
@@ -32,16 +28,13 @@ export function RenderOverlay({
   elements,
   pixelSize,
   selectedOperationId,
-}: RenderOverlayProps): JSX.Element {
+}: RenderOverlayProps): React.JSX.Element {
   const { dispatch } = useApp();
   const userBox = page.boxes.mediaBox;
   const rotation = page.rotation;
 
   // Sort elements by zIndex so painting order matches the visual stack.
-  const ordered = useMemo(
-    () => [...elements].sort((a, b) => a.zIndex - b.zIndex),
-    [elements],
-  );
+  const ordered = useMemo(() => [...elements].sort((a, b) => a.zIndex - b.zIndex), [elements]);
 
   const project = useMemo(
     () => makeProjector(userBox, pixelSize, rotation),
@@ -74,9 +67,7 @@ export function RenderOverlay({
             height={Math.max(1, projected.h)}
             tabIndex={0}
             role="button"
-            aria-label={
-              el.preview ? `${el.kind} ${el.preview}` : `${el.kind} ${el.id}`
-            }
+            aria-label={el.preview ? `${el.kind} ${el.preview}` : `${el.kind} ${el.id}`}
             onClick={() =>
               dispatch({
                 type: "select",
@@ -95,9 +86,7 @@ export function RenderOverlay({
               }
             }}
           >
-            <title>
-              {el.preview ? `${el.kind} — ${el.preview}` : el.kind}
-            </title>
+            <title>{el.preview ? `${el.kind} — ${el.preview}` : el.kind}</title>
           </rect>
         );
       })}

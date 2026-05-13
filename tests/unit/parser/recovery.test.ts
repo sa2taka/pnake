@@ -8,9 +8,8 @@
 
 import { describe, expect, it } from "vitest";
 import { buildManifest } from "../../../src/worker/pdf/structure/manifest";
-import { toBytes } from "../../../src/worker/pdf/io/byte-reader";
+import { toBytes, ByteReader  } from "../../../src/worker/pdf/io/byte-reader";
 import { Lexer, tokenizeAll } from "../../../src/worker/pdf/lex/lexer";
-import { ByteReader } from "../../../src/worker/pdf/io/byte-reader";
 import { IndirectObjectReader } from "../../../src/worker/pdf/parse/object-reader";
 
 function buildPdfWith(
@@ -30,10 +29,7 @@ function buildPdfWith(
   for (const off of offsets) xref += `${pad(off)} 00000 n \n`;
   if (options.corruptXref) {
     // Replace one entry with a malformed 20-byte line (must match canonical length).
-    xref = xref.replace(
-      /0000000\d{3} 00000 n \n/,
-      "garbledxxx 00000 n \n",
-    );
+    xref = xref.replace(/0000000\d{3} 00000 n \n/, "garbledxxx 00000 n \n");
   }
   xref += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n`;
   const tail = `startxref\n${xrefOffset}\n${options.missingEof ? "" : "%%EOF\n"}`;

@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { useApp, type TreeViewMode } from "../state/AppContext";
 import "./Toolbar.css";
 
-interface ToolbarProps {
+type ToolbarProps = {
   bottomOpen: boolean;
   onToggleBottom: () => void;
 }
@@ -17,7 +17,7 @@ const VIEW_MODES: { value: TreeViewMode; label: string }[] = [
   { value: "warnings", label: "Warnings" },
 ];
 
-export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): JSX.Element {
+export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): React.JSX.Element {
   const { state, dispatch, parser } = useApp();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -87,11 +87,7 @@ export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): JSX.Eleme
           </span>
         )}
         {doc.status === "error" && (
-          <span
-            className="toolbar-status toolbar-status-error"
-            role="alert"
-            aria-live="assertive"
-          >
+          <span className="toolbar-status toolbar-status-error" role="alert" aria-live="assertive">
             {doc.error}
           </span>
         )}
@@ -102,9 +98,7 @@ export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): JSX.Eleme
         <select
           className="toolbar-select"
           value={state.treeView}
-          onChange={(e) =>
-            dispatch({ type: "setTreeView", mode: e.target.value as TreeViewMode })
-          }
+          onChange={(e) => dispatch({ type: "setTreeView", mode: e.target.value as TreeViewMode })}
           disabled={doc.status !== "loaded"}
         >
           {VIEW_MODES.map((m) => (
@@ -141,10 +135,7 @@ export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): JSX.Eleme
             onClick={() =>
               dispatch({
                 type: "setCurrentPage",
-                pageNumber: Math.min(
-                  analysis.pages.length,
-                  state.currentPage + 1,
-                ),
+                pageNumber: Math.min(analysis.pages.length, state.currentPage + 1),
               })
             }
           >

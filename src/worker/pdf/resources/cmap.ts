@@ -9,12 +9,12 @@
  * via the value parser if encountered.
  */
 
-import type { PdfWarning } from "../../../shared/ir-types";
 import { ByteReader, asciiString } from "../io/byte-reader";
 import { Lexer } from "../lex/lexer";
 import { TokenStream } from "../lex/token-stream";
+import type { PdfWarning } from "../../../shared/ir-types";
 
-export interface CodespaceRange {
+export type CodespaceRange = {
   /** Byte width of codes in this range (1–4). */
   width: number;
   /** Inclusive lower bound as big-endian uint. */
@@ -23,7 +23,7 @@ export interface CodespaceRange {
   end: number;
 }
 
-export interface ToUnicodeCMap {
+export type ToUnicodeCMap = {
   /** Map from character code (1–4 byte big-endian uint) to a Unicode string. */
   entries: Map<number, string>;
   /** Source byte ranges hex strings can have. Most PDFs use 2-byte codes. */
@@ -201,11 +201,7 @@ function parseBfrange(
 
 // ---- Apply a CMap to decode a glyph-encoded string ----
 
-export function decodeWithCMap(
-  cmap: ToUnicodeCMap,
-  bytes: Uint8Array,
-  fallbackBytes = 2,
-): string {
+export function decodeWithCMap(cmap: ToUnicodeCMap, bytes: Uint8Array, fallbackBytes = 2): string {
   const widths = cmap.codeByteLengths.size > 0 ? Array.from(cmap.codeByteLengths) : [fallbackBytes];
   widths.sort((a, b) => b - a); // try longest first
   let i = 0;
@@ -255,7 +251,7 @@ function codespaceWidthFor(
 
 function readBigEndian(bytes: Uint8Array): number {
   let acc = 0;
-  for (let i = 0; i < bytes.length; i++) acc = (acc << 8) | (bytes[i] ?? 0);
+  for (const b of bytes) acc = (acc << 8) | b;
   return acc >>> 0;
 }
 

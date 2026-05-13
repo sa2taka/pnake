@@ -6,6 +6,11 @@
  * the /W field-width array into PdfXrefEntry records.
  */
 
+import { objectId } from "../../../shared/ir-types";
+import { IndirectObjectReader } from "../parse/object-reader";
+import { expectArray, expectInt, extractFilters } from "../parse/value-parser";
+import { decodeStream, extractDecodeParms, UnsupportedFilterError } from "../streams/decode";
+import type { ByteReader } from "../io/byte-reader";
 import type {
   PdfFilter,
   PdfTrailer,
@@ -14,13 +19,8 @@ import type {
   PdfXref,
   PdfXrefEntry,
 } from "../../../shared/ir-types";
-import { objectId } from "../../../shared/ir-types";
-import type { ByteReader } from "../io/byte-reader";
-import { IndirectObjectReader } from "../parse/object-reader";
-import { expectArray, expectInt, extractFilters } from "../parse/value-parser";
-import { decodeStream, extractDecodeParms, UnsupportedFilterError } from "../streams/decode";
 
-export interface XrefStreamResult {
+export type XrefStreamResult = {
   xref: PdfXref;
   trailer: PdfTrailer;
   warnings: PdfWarning[];
@@ -51,7 +51,9 @@ export async function parseXrefStream(
     decoded = await decodeStream(raw, filters, parms);
   } catch (err) {
     if (err instanceof UnsupportedFilterError) {
-      throw new Error(`xref stream uses unsupported filter ${err.filter}`);
+      throw new Error(`xref stream uses unsupported filter ${describeFilter(err.filter)}`, {
+        cause: err,
+      });
     }
     throw err;
   }
@@ -108,6 +110,10 @@ export async function parseXrefStream(
     entries,
   };
   return { xref, trailer, warnings };
+}
+
+function describeFilter(filter: PdfFilter): string {
+  return typeof filter === "string" ? filter : filter.name;
 }
 
 function mapEntry(type: number, f2: number, f3: number, objectNumber: number): PdfXrefEntry {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-interface SplitterProps {
+type SplitterProps = {
   orientation: "vertical" | "horizontal";
   onDrag: (delta: number) => void;
   onDoubleClick?: () => void;
@@ -12,7 +12,7 @@ export function Splitter({
   onDrag,
   onDoubleClick,
   spanColumns = false,
-}: SplitterProps): JSX.Element {
+}: SplitterProps): React.JSX.Element {
   const [active, setActive] = useState(false);
   const lastRef = useRef<number | null>(null);
 
@@ -34,10 +34,13 @@ export function Splitter({
     window.removeEventListener("pointerup", onPointerUp);
   }, [onPointerMove]);
 
-  useEffect(() => () => {
-    window.removeEventListener("pointermove", onPointerMove);
-    window.removeEventListener("pointerup", onPointerUp);
-  }, [onPointerMove, onPointerUp]);
+  useEffect(
+    () => () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    },
+    [onPointerMove, onPointerUp],
+  );
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();

@@ -26,7 +26,11 @@ describe("ValueParser", () => {
   });
 
   it("attaches byte range to parsed values", () => {
-    const v = parse("   42") as { kind: "int"; value: number; range?: { start: number; end: number } };
+    const v = parse("   42") as {
+      kind: "int";
+      value: number;
+      range?: { start: number; end: number };
+    };
     expect(v.range).toBeDefined();
     expect(v.range!.start).toBe(3);
     expect(v.range!.end).toBe(5);

@@ -36,9 +36,7 @@ describe("explainOperator", () => {
   });
 
   it("Tj summarises the displayed string", () => {
-    const ex = explainOperator(
-      op("Tj", [{ kind: "string", raw: new Uint8Array([0x48, 0x69]) }]),
-    );
+    const ex = explainOperator(op("Tj", [{ kind: "string", raw: new Uint8Array([0x48, 0x69]) }]));
     expect(ex.human).toContain("Hi");
   });
 
