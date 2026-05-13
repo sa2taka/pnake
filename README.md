@@ -1,178 +1,97 @@
-# pnake — PDF DevTools
+# pnake
 
-PDF の中身を **ブラウザだけで** 解剖する DevTools 風インスペクタ。
-描画ビューアではなく、構造を読むためのツール。Catalog / Pages / Resources / Content
-stream を全部 lossless に追跡し、ノードをクリックすると元バイトまで辿れます。
+PDF の中身をブラウザだけで覗くための inspector。
+`xref` から `/Contents` の `Tj` まで、ツリーを開いて辿れる。
+
+viewer の代替品ではない。
+描画はそこそこにしか出ない。
+代わりに、object id を入力して何が入っているかを目で読むための道具になっている。
 
 <p align="center">
-  <img src="docs/images/hero.png" alt="pnake — full UI showing the Tree / Render / Detail panels for tracemonkey.pdf" width="100%" />
+  <img src="docs/images/hero.png" alt="pnake の UI 全景。tracemonkey.pdf を読み込んだ状態" width="100%" />
 </p>
 
-| | パネル | 用途 |
-|---|---|---|
-| **1** | Tree | Objects / Pages / Content / Structure / Warnings の 5 ビュー切替 |
-| **2** | Render | PDF.js による描画(参照用)+ SVG overlay でクリック可能要素 |
-| **3** | Detail | 選択ノードの Human / Technical / Raw 3 段説明 |
-| **4** | Drawer | 下から開く raw / decoded バイトの hex view |
+画面の番号は左から、
 
----
+1. 左ペインがツリー。Objects, Pages, Content, Structure, Warnings の 5 通りの見方を切り替える。
+2. 中央が pdfjs-dist の描画。クリッカブルな SVG overlay を重ねていて、テキストランや画像を選ぶと対応する operator が左ペインで光る。
+3. 右ペインが Detail で、選んだノードについて Human / Technical / Raw の 3 タブで段階的に出す。
+4. 右上の Show drawer で下から hex ビューが開く。stream の生バイトを見たいとき用。
 
-## なぜ pnake か
+## どんな時に使うか
 
-- **PDF を眺めるためのツールではない。理解するためのツール**。pdfinfo / pdfopen を一画面に集約し、専門家でない人にも「これは何を意味するか」を提示する。
-- **アップロード不要**。すべての処理はブラウザ内（main thread + Web Worker）で完結。PDF はネットワーク越しに出ない。
-- **lossless → decoded → explained の 3 段表現**。raw byte range まで切れない、provenance を絶対に失わない設計。詳細は [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md)。
+「描画は正常なのに何か変な PDF」を調べるときに一番役に立つ。
+content stream まで降りて `q` `cm` `Tj` ... を順番に眺めていけば、たいてい当たりが付く。
+他にも、
 
----
+- xref が壊れた PDF を scan recovery で読んだとき、何が拾えて何が捨てられたかを warning から確認する
+- `/StructTreeRoot` を持つタグ付き PDF で、ある段落の `MCID` がどの content operator に対応しているかを追う
+- 同じ object 番号で複数 revision がある incremental update を、どっちが現行か判定する
 
-## Quick Start
+このあたりはどれも、view を切り替えてリンクを辿るだけで終わる。
+
+データは外に出ない。
+file を選んだ瞬間にネットワーク I/O は発生しないし、ローカル storage にも書かない。
+解析は Web Worker、描画は pdfjs-dist の worker、メインスレッドの React が表示するだけ。
+
+## 動かす
 
 ```bash
 pnpm install
-pnpm dev       # http://localhost:5173
+pnpm dev
 ```
 
-ブラウザで開き、ヘッダの **Open PDF** から任意の PDF を選択するか、ファイルをドラッグ&ドロップ。
-すべての解析は手元のタブで完結し、ファイルがどこにも送信されません。
+`http://localhost:5173` を開いて、ヘッダの Open PDF か drag&drop で PDF を渡す。
 
-> [!NOTE]
-> Node 22+ / pnpm 9+ を想定。Worker と OPFS の都合上、Chromium 系での動作確認が中心。
+動作確認しているのは Chromium 系のみ。
+Node 22 以上、pnpm 9 以上を前提にしている。
 
----
+## ビューの中身
 
-## 機能ハイライト
+#### Objects
 
-### Objects view — オブジェクトインデックス
-
-xref から復元した全 indirect object を一覧。`/Type`・`/Subtype` を hint として併記し、
-`·S` チップで stream を持つオブジェクトを示します。
+xref から復元した indirect object を全部並べる。
+hint 欄に `/Type` と `/Subtype` を併記しているので、Catalog なのか Page なのか Font なのかは一目で分かる。
+末尾に `·S` が付いている行は stream を持っているという目印。
 
 <p align="center"><img src="docs/images/02-loaded.png" alt="Objects view" width="100%" /></p>
 
-### Pages view — ページ一覧
+#### Pages
 
-Page tree を平坦化し、MediaBox サイズ・回転・annotation 数を確認。クリックで該当 Page object へ即ジャンプ。
+Page tree を平坦化して、ページ番号順に並べる。
+MediaBox のサイズと object ref が出ているので、どこに飛べばいいか分かる。
+クリックすると Objects 側の同じ Page object に選択が移る。
 
 <p align="center"><img src="docs/images/04-pages-view.png" alt="Pages view" width="100%" /></p>
 
-### Content view — content stream のタイムライン
+#### Content
 
-そのページの operator を `q / BT / Tj / Q` の入れ子で表示。各 op をクリックすると Detail パネルに**人間向け説明**が出ます。仕様参照付き。
+そのページの content stream を operator 単位で展開する。
+`q` で増えて `Q` で減るのと、`BT` から `ET` までの text object も、インデントで入れ子を表現する。
+operator をクリックすると Detail の Human タブに日本語の説明が出て、ISO 32000-2 の節番号も併記する。
+`Tj` を選べば「文字列を現在位置に描画する」のような説明、`cm` を選べば「CTM を変更する」の説明、といった具合。
 
-<p align="center"><img src="docs/images/05-content-view.png" alt="Content view with operator detail" width="100%" /></p>
+<p align="center"><img src="docs/images/05-content-view.png" alt="Content stream operator timeline" width="100%" /></p>
 
-### Structure view — Tagged PDF
+#### Structure
 
-`/StructTreeRoot` をたどって論理構造を表示。MCID をクリックすると、その mark を発火させた content operator にジャンプ。
+`/StructTreeRoot` を持つタグ付き PDF の論理構造ツリー。
+`Document`, `Sect`, `H1`, `P`, `Figure` などのタグが入れ子で並ぶ。
+`MCID` のノードをクリックすれば、その mark を発した content operator までジャンプして、必要なら自動で別ページに移動する。
+タグなし PDF を読ませると、何も無いということだけが書かれる。
 
-<p align="center"><img src="docs/images/06-structure-view.png" alt="Structure view for tagged PDF" width="100%" /></p>
+<p align="center"><img src="docs/images/06-structure-view.png" alt="Structure view" width="100%" /></p>
 
-### Bottom drawer — Raw / Decoded byte hex
+#### Bottom drawer
 
-Stream オブジェクトを選んだまま下のドロワを開けば、filter 適用前 / 適用後の生バイトを hex でプレビュー。
+選択中の object が stream を持っているとき、その先頭 4KiB を hex で出す。
+filter 展開前の生バイト (Raw) と、`FlateDecode` などを通した後 (Decoded) を切り替えられる。
+普段は閉じておいて、必要な時だけ右上の Show drawer で開く。
 
-<p align="center"><img src="docs/images/07-bottom-drawer.png" alt="Hex view of decoded bytes" width="100%" /></p>
+<p align="center"><img src="docs/images/07-bottom-drawer.png" alt="Bottom drawer hex view" width="100%" /></p>
 
----
+## もっと知る
 
-## アーキテクチャ 1 枚絵
-
-```
-┌────────────────────────────────────────────────────────────┐
-│  UI (main thread)                                          │
-│   Shell  ─ Toolbar / Tree / Render / Detail / Drawer       │
-│           AppContext (useReducer + 3 contexts)             │
-│           ParserService — Worker / InProcess の DI         │
-└─────────────────────────────────▲──────────────────────────┘
-                                  │ typed RPC (RpcMethods map)
-┌─────────────────────────────────┴──────────────────────────┐
-│  Worker (parser-session.ts)                                │
-│   ├─ parseStructure   (header / EOF / xref / 復旧)         │
-│   ├─ loadObjectGraph  (indirect objects + ObjStm 展開)     │
-│   ├─ buildDocumentGraph (Catalog / pages / AcroForm)       │
-│   └─ collectFileInfo  (linearized / tagged / xfa / js)     │
-└────────────────────────────────────────────────────────────┘
-
-   PDF.js (描画専用) ←── 並列に走るが解析には使わない
-```
-
-依存方向は ESLint で機械的に守る:
-
-- `ui/`     → `worker/pdf/**` を **import しない** → `core/` か `shared/` 経由
-- `shared/` → 何にも依存しない (contract layer)
-
-詳細は [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) / [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) / [`docs/DECISIONS.md`](docs/DECISIONS.md)。
-
----
-
-## 開発
-
-| Script | 用途 |
-|---|---|
-| `pnpm dev` | Vite dev server (HMR 付き) |
-| `pnpm build` | プロダクションビルド (`dist/`) |
-| `pnpm preview` | ビルド成果物をローカル配信 |
-| `pnpm typecheck` | `tsc -b --noEmit` |
-| `pnpm test` | Vitest (unit / integration) |
-| `pnpm e2e` | Playwright e2e (`pnpm e2e:install` を初回先行) |
-| `pnpm lint` / `pnpm lint:fix` | ESLint (flat config, strictTypeChecked) |
-| `pnpm format` / `pnpm format:check` | oxfmt によるフォーマット |
-| `pnpm capture:screenshots` | この README のスクリーンショットを再生成 |
-
-### スタック
-
-- React 19 / TypeScript 6 / Vite 8 / Vitest 4 / Playwright
-- 描画は **pdfjs-dist 5**(canvas 出力のみ。解析は自前)
-- Lint: ESLint 10 flat config + `typescript-eslint` strict + `import-x` + `jsx-a11y` + `@eslint-react` + `@vitest/eslint-plugin`
-- Format: `oxfmt`(Prettier 互換、~10× 速い)
-
-### ディレクトリ
-
-```
-src/
-├── App.tsx / main.tsx
-├── ui/           # main thread のみ (panels / state / services / overlay)
-├── core/         # transport-agnostic な ParserSession
-├── shared/       # IR 型 / RPC protocol / operator spec
-├── worker/       # Worker entry + pdf/ パーサ群
-└── pdfjs/        # PDF.js wrapper (描画専用)
-```
-
----
-
-## セキュリティ方針
-
-入力 PDF はマルウェア相当のリスクを持つため、**絶対に行わない** 事を明示しています:
-
-- PDF 内 JavaScript Actions の実行
-- 外部 URL の自動 fetch
-- Embedded files の自動展開
-- フォントの OS 登録
-
-巨大 PDF(500MB+)で UI を止めないために stream は lazy decode、decompression bomb 対策として展開後サイズ上限あり。詳細は [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) の "エラー設計" / "セキュリティ" 節。
-
----
-
-## ロードマップ / 設計判断
-
-- フェーズと DoD: [`docs/ROADMAP.md`](docs/ROADMAP.md)
-- 直近のタスク: [`docs/TASKS.md`](docs/TASKS.md)
-- 主要な設計判断ログ: [`docs/DECISIONS.md`](docs/DECISIONS.md)
-
----
-
-## Contributing
-
-PR / Issue 歓迎です。コードを書く前に:
-
-1. `docs/ARCHITECTURE.md` と `docs/DATA_MODEL.md` を読む
-2. `pnpm install && pnpm typecheck && pnpm test && pnpm e2e` が通る状態にする
-3. 仕様変更(IR を増やす等)は同じ PR でドキュメントも更新する
-
-PR description は git commit log の自然な拡張です。
-
----
-
-## License
-
-このリポジトリは個人/教育用途を想定した実験プロジェクトです。ライセンスは現状未確定。利用前に確認してください。
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 全体の地図
+- [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) IR の語彙
+- [`docs/DECISIONS.md`](docs/DECISIONS.md) 設計判断の経緯

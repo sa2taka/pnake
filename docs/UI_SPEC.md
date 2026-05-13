@@ -1,16 +1,16 @@
 # UI Specification
 
-UI 構成・状態・主要インタラクションを定義する。
+画面構成・状態・主要インタラクションをまとめる。
 
-**必読スキル**（実装前にすべて確認すること）:
+UI を書く前に、次のスキルを読んでおくと迷いが減る。
 
-- `devtools-ui-patterns` — 三分割・選択同期・raw/decoded/explained 等の構造原則
-- `devtools-aesthetic` — 情報密度・タイポ・色・パネル設計の具体パターン
-- `interface-craft` — Refactoring UI / Linear / Rauno 流の craft 原則
-- `motion-restraint` — アニメーション設計（Emil Kowalski 流）
-- `anti-ai-ui` — **PR 前必須レビュー**: 12 の AI tell を駆逐
+- `devtools-ui-patterns`: 三分割、選択同期、raw / decoded / explained といった DevTools 系の構造原則。
+- `devtools-aesthetic`: 情報密度、タイポ、色、パネル設計の具体パターン。
+- `interface-craft`: Refactoring UI、Linear、Rauno 流の craft 寄り。
+- `motion-restraint`: アニメーションの抑制方針 (Emil Kowalski 系)。
+- `anti-ai-ui`: PR を投げる前のチェックリスト。AI 製 UI に出やすい 12 種の癖を潰す。
 
-このドキュメントの記述に迷いがある場合、スキル側の記述を優先する。
+このドキュメントとスキル記述が食い違う場合は、スキル側を真とする。
 
 ## 全体レイアウト
 

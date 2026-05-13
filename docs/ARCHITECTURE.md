@@ -1,8 +1,7 @@
 # Architecture
 
-このドキュメントは pnake の **全体構造** を定義する。各モジュールの責務、レイヤー分離、
-Worker 分割、データフローを記述する。具体的な型は `DATA_MODEL.md`、UI は `UI_SPEC.md`、
-実装手順は `TASKS.md` を参照。
+pnake の全体構造をまとめる。型は `DATA_MODEL.md`、画面は `UI_SPEC.md`、
+タスク順は `TASKS.md`。設計判断の経緯は `DECISIONS.md` に残してある。
 
 ## レイヤー
 
@@ -23,7 +22,6 @@ Worker 分割、データフローを記述する。具体的な型は `DATA_MOD
 │   - Content stream tokenizer + interpreter                  │
 │   - Graphics state simulator                                 │
 │   - Resource resolver                                        │
-│   - Explanation layer attacher                              │
 └──────────────▲──────────────────────────────────────────────┘
                │
 ┌──────────────┴──────────────────────────────────────────────┐
@@ -33,26 +31,25 @@ Worker 分割、データフローを記述する。具体的な型は `DATA_MOD
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 各レイヤーの責務
+### UI Layer
 
-**UI Layer**
+解析ロジックは持たない。Worker から戻ってきた IR を表示するだけ。
+React の state で抱えるのは選択ノード id, view mode, 現在ページ, ツリー展開状態, フィルタ程度。
+Redux は要らない。座標変換も検索も Worker に投げる。
+唯一例外なのは overlay の SVG 配置計算で、これは要素ごとに小さい行列を回すだけなので main thread に残している。
 
-- 解析ロジックは持たない。Worker からの IR を表示するだけ
-- 状態管理: 「現在選択中のノード ID」「現在のビューモード」「現在のページ番号」
-  「展開済みツリー」「フィルタ条件」程度。Redux 等は不要
-- 重い計算（座標変換、検索）は Worker に投げる。例外は overlay の SVG 配置計算のみ
+### Analyzer Worker
 
-**Analyzer Worker**
+main thread からのメッセージを受けて IR を返す。
+PDF を 1 ファイル分ロード中の状態を内部に持ち、`getObjectDetail` や `getPageOperations` といった lazy fetch をそこから引く。
+パーサのロジックはすべてここに集約する。
+プロトコルの詳細は `shared/protocol.ts` の `RpcMethods` を見るのが早い。
 
-- メインスレッドからの message を受け、IR の断片を返す
-- 状態を持つ（PDF を 1 ファイル分ロード中）
-- すべての parser ロジックがここに集約する
-- 詳細プロトコルは `web-worker-orchestration` スキル参照
+### Render Worker (pdf.js)
 
-**Render Worker (PDF.js)**
-
-- 純粋にページ画像を出すだけ
-- 描画結果から逆引きしない（自前 IR が source of truth）
+ページ画像を canvas に出すためだけに居る。
+描画結果から逆引きはしない。
+IR の source of truth はあくまで自前パーサ側。
 
 ## データフロー
 
@@ -72,19 +69,20 @@ Worker 分割、データフローを記述する。具体的な型は `DATA_MOD
 8. Worker:
      - 該当 Page object 取得
      - Contents stream 取得 → decode → tokenize → operator list
-     - graphics state を simulate して各 op に bbox / state snapshot 付与
+     - graphics state を simulate
      - resource 解決（font, xobject, ...）
-     - Explanation を attach
 9. Worker → UI: { type: "page-analysis", pageNumber, analysis }
 10. 並行: UI → PDF.js Worker でページレンダリング
 11. UI:   canvas に画像、SVG overlay を IR から生成
 12. User: overlay 要素をクリック
-13. UI:   該当 operator/object を選択 → Detail Panel と Tree を同期
+13. UI:   該当 operator / object を選択、Detail Panel と Tree を同期
 ```
 
-## モジュール分割（予定）
+operator の human / technical 説明は IR には乗らない。
+UI が `shared/pdf-spec.ts` の静的テーブルを引いて表示時に組み立てる。
+worker → main の payload を小さく保つのと、説明を変えるたびに再解析しないで済ませるためにそうしている。
 
-実装はまだだが、コードは以下の境界で分ける。
+## モジュール分割
 
 ```
 src/
@@ -122,71 +120,63 @@ src/
   pdfjs/                 # PDF.js wrapper（render 専用）
 ```
 
-依存方向の前提:
+依存方向は ESLint で機械的に守っている。
+`ui/` が `worker/pdf/**` を直接 import すると lint が落ちる。代わりに `core/` か `shared/` を通す。
+`worker/index.ts` は `core/parser-session.ts` を叩く薄いアダプタ。
+`core/parser-session.ts` は transport には依存しないが、`worker/pdf/**` のパーサには直接依存する。
+"transport-neutral" だが "engine-neutral" ではない、というのは正直に書くと意味するところ。
+Worker から InProcess に倒すスイッチ点はこの session 単位。
 
-- `ui/` は `worker/` を直接 import せず、`core/` か `shared/` を経由する
-- `worker/index.ts` は `core/parser-session.ts` を呼ぶ薄い transport adapter
-- `core/parser-session.ts` は **transport には依存しない** が、`worker/pdf/**` の
-  パーサモジュール群には直接依存する（"transport-neutral" であって "engine-neutral"
-  ではない）。Worker から InProcess に倒したい場合のスイッチ点はここ
+### 新しく入る人向けの読書順
 
-### 新規参画者向けの読書順
-
-1. `App.tsx` → `Shell.tsx` で UI の骨格
-2. `ui/state/AppContext.tsx` で reducer と 3 つの context split
-3. `ui/services/parser-service.ts` の `ParserService` interface
-4. `ui/workerClient.ts` で typed RPC facade
-5. `worker/index.ts` で dispatcher（switch 1 つ）
-6. `core/parser-session.ts` で session lifecycle
-7. `worker/pdf/structure/manifest.ts` の `parsePdf` がパーサ orchestrator
+`App.tsx` から `Shell.tsx` で UI 骨格を眺めたら、`ui/state/AppContext.tsx` で reducer と 3 つの context split を見る。
+そのあと `ui/services/parser-service.ts` で DI 抽象、`ui/workerClient.ts` で typed RPC facade、`worker/index.ts` の dispatcher (switch 1 つ)、`core/parser-session.ts` で session の lifecycle と続けて、最後に `worker/pdf/structure/manifest.ts` の `parsePdf` を読むと parser 全体の orchestrator が分かる。
 
 ## 解析パイプライン
 
-Worker 側の処理順序（詳細は `binary-parser-design` スキル）:
+Worker 側の処理は次の順番で動く。
 
-1. **Load** — bytes 受領、hash、size、header、EOF 検出、linearized hint 確認
-2. **File structure** — xref table / xref stream / trailers / incremental updates / object streams
-3. **Object graph** — indirect objects（lazy stream 参照のみ持つ）
-4. **Document graph** — Catalog → Pages tree → page inheritance → resources → ...
-5. **On demand: page analysis** — content stream を tokenize → operator list →
-   resource resolve → ToUnicode CMap → visual element 構築
-6. **On demand: stream decode** — `getStream` で raw / decoded を返す
-7. **Explanation の組み立ては UI 側** — `shared/pdf-spec.ts` の静的データを引いて
-   Detail Panel が表示時に組み立てる（IR には乗せない）
+1. **Load**: bytes 受領、hash、size、header、EOF 検出、linearized hint 確認。
+2. **File structure**: xref table / xref stream / trailer / incremental updates / object streams。
+3. **Object graph**: indirect objects を読み込む（stream の中身は lazy なまま参照だけ持つ）。
+4. **Document graph**: Catalog → Pages tree → page inheritance → resources の順で辿る。
+5. **On demand: page analysis**: content stream を tokenize して operator list を作り、resource を解決し、ToUnicode CMap を読み、visual element を構築する。
+6. **On demand: stream decode**: `getStream` で raw / decoded を返す。
+
+説明レイヤは Worker には居ない。UI 側の `shared/pdf-spec.ts` が表示時に組み立てる。
 
 ### Lazy decoding 原則
 
-- Manifest 段階では stream 内容は読まない（dictionary だけ）
-- ノードクリック / ページ選択時に必要なものだけ decode
-- decode 結果は Worker 内 LRU cache（容量 32 エントリ、`core/lru-cache.ts`）
+Manifest 段階で stream の中身は読まない。dictionary だけ拾う。
+node をクリックするか、ページを選択した時点で初めて該当 stream を decode する。
+decode 結果は Worker 内の LRU cache (`core/lru-cache.ts`, 容量 32) に入れる。
+2 回目の同じ要求はキャッシュから返る。
 
 ## ライブラリ境界
 
-**Worker から UI に送るもの**:
+Worker から UI に送るのは IR の断片だけで、structured clone 可能な形に揃えている。
+`getStream` の結果は `ArrayBuffer` を Transferable で渡すので、worker → main へのコピーは発生しない。
+PDF.js による canvas 描画も IR を介さず canvas に直接書き込むので、ここでもデータの行き来は起きない。
 
-- IR の断片（structured clone 可能な形）
-- `getStream` の結果は `ArrayBuffer` を Transferable で渡す（ゼロコピー移転）
-- 描画は PDF.js Worker が canvas に直接行うので IR を介さない
+ただし正直に書くと、今はまだ送りすぎている部分がある。
 
-**今は送っているが、本当は減らしたいもの**:
+- 大きな PDF を読むと `fileBytes` を main thread 側で 1 本持ったままになる。これは UI が Toolbar 経由で PDF.js に渡すために手元に置いておくのが理由で、本当は `Blob` URL に逃がしたい。
+- `getStream(decoded)` で全バイトを返している。UI が頭の 4KiB しか使わない場面でも全部送るので無駄が出ている。`getStreamPreview(offset, length)` 相当の API への分割が未実装。
 
-- 大きな PDF の `fileBytes` 全体（UI が Toolbar 経由で PDF.js に渡すために main thread で保持）
-- `getStream(decoded)` の全バイト — UI が抜粋しか使わないケースでも全部送っている
-  （`getStreamPreview(offset, length)` への分割は未実装）
+どちらも v1 安定化前に片付けたい範囲。
 
 ## エラー設計
 
-- 「致命的に解析不可能」と「壊れているが部分的に読める」を分ける
-- 後者は `warnings: PdfWarning[]` として IR に乗せ、UI で可視化
-- catch & swallow しない。Warning として表面化する
+解析エラーは「致命的に読めない」と「壊れているが部分的には読める」の 2 種類に分けて扱う。
+後者は `warnings: PdfWarning[]` として IR に乗せ、UI の Warnings ビューで一覧できる。
+catch して握り潰すパターンは入れない。読めなかったということ自体を warning として表に出す。
 
-詳細は `lossless-ir-design` スキル参照。
+PDF を投げ込むユーザは「壊れた PDF だから何が壊れているか知りたい」というケースが多いので、可視化は割と本質的なところ。
 
 ## RPC
 
-`shared/protocol.ts` に **単一の `RpcMethods` map** を置き、`WorkerRequest` と
-success レスポンスの union arms はそこから派生する。新メソッド追加は 1 map entry +
-`worker/index.ts` の switch + `WorkerClient` のラッパだけで済む。
+`shared/protocol.ts` に `RpcMethods` という単一の map がある。`WorkerRequest` と success の `WorkerResponse` arms はこの map から派生する。
+メソッドを増やすときは map に 1 entry 足し、`worker/index.ts` の switch に case を 1 つ加え、`WorkerClient` にラッパを 1 個書けば終わる。
 
 ```ts
 interface RpcMethods {
@@ -196,14 +186,14 @@ interface RpcMethods {
 }
 ```
 
-`cancel` だけが out-of-band envelope。現状 client が pending Promise を reject するだけで
-worker 側は no-op（要改修）。進捗通知のような streaming は今はサポートせず、必要に
-なったら明示的に検討する。
+`cancel` だけは out-of-band envelope として別経路に置いている。今のところ client 側で pending Promise を reject するだけで、worker 側は no-op。
+本当に止めたい場合は、`ParserSession` の hot loop に AbortToken を流すか、request ごとに worker を terminate する方式に変える必要がある。
+進捗通知は今はサポートしていない。要件が出たら追加する。
 
 ## 関連ドキュメント
 
-- データ型: `DATA_MODEL.md`
-- 画面: `UI_SPEC.md`
-- フェーズ: `ROADMAP.md`
-- タスク: `TASKS.md`
-- 設計判断: `DECISIONS.md`
+- データ型: [`DATA_MODEL.md`](DATA_MODEL.md)
+- 画面: [`UI_SPEC.md`](UI_SPEC.md)
+- フェーズ: [`ROADMAP.md`](ROADMAP.md)
+- タスク: [`TASKS.md`](TASKS.md)
+- 設計判断: [`DECISIONS.md`](DECISIONS.md)
