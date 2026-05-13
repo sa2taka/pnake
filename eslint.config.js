@@ -23,8 +23,11 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
+import reactX from "@eslint-react/eslint-plugin";
 import importX from "eslint-plugin-import-x";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import unusedImports from "eslint-plugin-unused-imports";
+import vitest from "@vitest/eslint-plugin";
 import globals from "globals";
 
 export default tseslint.config(
@@ -45,6 +48,8 @@ export default tseslint.config(
   js.configs.recommended,
   importX.flatConfigs.recommended,
   importX.flatConfigs.typescript,
+  jsxA11y.flatConfigs.recommended,
+  reactX.configs["recommended-typescript"],
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
 
@@ -170,6 +175,15 @@ export default tseslint.config(
       // owned arrays; the rule is too cautious for that pattern.
       "@typescript-eslint/require-array-sort-compare": "warn",
 
+      // ---- Accessibility — DevTools tree rows ----
+      // Our tree views use <li role="option" onClick=...> inside a
+      // role="listbox" container. The listbox should own keyboard
+      // navigation (arrow keys + Enter); shipping it is on the roadmap.
+      // Demote the most noisy two rules to warnings until then so other
+      // a11y feedback (alt, label, etc.) still surfaces as errors.
+      "jsx-a11y/click-events-have-key-events": "warn",
+      "jsx-a11y/no-noninteractive-element-interactions": "warn",
+
       // ---- General hygiene ----
       "no-console": ["warn", { allow: ["warn", "error"] }],
       eqeqeq: ["error", "smart"],
@@ -217,10 +231,17 @@ export default tseslint.config(
     },
   },
 
-  // ---- Tests: silence the noisy "type-checked" rules that don't help here ----
+  // ---- Tests: vitest plugin + silence the noisy "type-checked" rules ----
   {
     files: ["tests/**/*.{ts,tsx}"],
+    plugins: { vitest },
     rules: {
+      ...vitest.configs.recommended.rules,
+      // We legitimately branch on shape in fixture-driven tests.
+      "vitest/no-conditional-expect": "off",
+      // Most assertion helpers we write match this signature; warning-level
+      // is enough to flag genuinely missing assertions without false alarms.
+      "vitest/expect-expect": "warn",
       "@typescript-eslint/no-non-null-assertion": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unnecessary-condition": "off",

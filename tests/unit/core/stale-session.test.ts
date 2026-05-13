@@ -45,7 +45,7 @@ describe("ParserSession — stale session handling", () => {
   it("a getStream interleaved with a new load is rejected", async () => {
     const state = new ParserSession();
     await state.load(buildPdf("CCC"));
-    const pendingStream = state.getStream("obj:4:0", "decoded").catch((err) => err);
+    const pendingStream = state.getStream("obj:4:0", "decoded").catch((err: unknown) => err);
     await state.load(buildPdf("DD"));
     const settled = await pendingStream;
     expect(settled).toBeInstanceOf(StaleSessionError);
