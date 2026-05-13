@@ -2,7 +2,8 @@ import { useApp } from "../../state/AppContext";
 
 export function PagesView(): JSX.Element {
   const { state, dispatch } = useApp();
-  const pages = state.analysis?.pages ?? [];
+  const pages =
+    state.document.status === "loaded" ? state.document.analysis.pages : [];
   if (pages.length === 0) {
     return <div className="treepanel-empty">No pages.</div>;
   }

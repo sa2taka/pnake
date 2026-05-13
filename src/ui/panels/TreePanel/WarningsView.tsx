@@ -3,7 +3,8 @@ import type { PdfWarning } from "../../../shared/ir-types";
 
 export function WarningsView(): JSX.Element {
   const { state } = useApp();
-  const warnings = state.analysis?.warnings ?? [];
+  const warnings =
+    state.document.status === "loaded" ? state.document.analysis.warnings : [];
   if (warnings.length === 0) {
     return <div className="treepanel-empty">No warnings.</div>;
   }

@@ -15,17 +15,21 @@ export function DetailPanel(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("technical");
 
+  const analysis =
+    state.document.status === "loaded" ? state.document.analysis : undefined;
+
   // Look up the selected operation when applicable.
   const operation: PdfOperation | undefined = (() => {
     const id = state.selectedNodeId;
     if (!id || !isOperationId(id)) return undefined;
-    return state.pageOperations?.operations.find((op) => op.id === id);
+    if (state.pageOps.status !== "loaded") return undefined;
+    return state.pageOps.result.operations.find((op) => op.id === id);
   })();
 
   useEffect(() => {
     setError(null);
     const id = state.selectedNodeId;
-    if (!id || !state.analysis || !isObjectId(id)) {
+    if (!id || !analysis || !isObjectId(id)) {
       setDetail(null);
       return;
     }
@@ -41,7 +45,7 @@ export function DetailPanel(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [state.selectedNodeId, state.analysis, parser]);
+  }, [state.selectedNodeId, analysis, parser]);
 
   return (
     <div className="detailpanel" data-testid="detail-panel">

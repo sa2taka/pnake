@@ -3,6 +3,12 @@
  *
  * One reducer keeps every cross-pane state in one place; per-pane
  * state (e.g. row hover, scroll position) stays local to that pane.
+ *
+ * The state shape uses nested discriminated unions so impossible
+ * combinations ("status: loaded but no analysis", "pageOps: error but
+ * no error message") aren't representable. Consumers narrow by
+ * checking `state.document.status === "loaded"` / `state.pageOps.status
+ * === "loaded"` and then read the discriminated payload directly.
  */
 
 import {
@@ -33,22 +39,37 @@ export type BottomTab = "raw" | "decoded" | "trace" | "graphics-state";
 
 export type SelectionOrigin = "tree" | "overlay" | "trace" | "detail" | "search";
 
+// =============================================================================
+// State shape — nested discriminated unions
+// =============================================================================
+
+export type DocumentState =
+  | { status: "idle" }
+  | { status: "loading"; fileName?: string }
+  | { status: "error"; fileName?: string; error: string }
+  | {
+      status: "loaded";
+      fileName?: string;
+      fileBytes?: ArrayBuffer;
+      analysis: PdfAnalysis;
+      structTree?: PdfStructTree;
+    };
+
+export type PageOpsState =
+  | { status: "idle" }
+  | { status: "loading"; pageNumber: number }
+  | { status: "error"; pageNumber: number; error: string }
+  | { status: "loaded"; result: PageOperationsResult };
+
 export interface AppState {
-  status: "idle" | "loading" | "loaded" | "error";
-  fileName?: string;
-  fileBytes?: ArrayBuffer;
-  analysis?: PdfAnalysis;
-  structTree?: PdfStructTree;
-  error?: string;
+  document: DocumentState;
+  pageOps: PageOpsState;
   selectedNodeId?: string;
   selectionOrigin: SelectionOrigin;
   treeView: TreeViewMode;
   bottomTab: BottomTab;
   bottomOpen: boolean;
   currentPage: number;
-  pageOperations?: PageOperationsResult;
-  pageOperationsStatus: "idle" | "loading" | "loaded" | "error";
-  pageOperationsError?: string;
 }
 
 type Action =
@@ -69,58 +90,62 @@ type Action =
   | { type: "setCurrentPage"; pageNumber: number }
   | { type: "pageOpsStart"; pageNumber: number }
   | { type: "pageOpsSuccess"; result: PageOperationsResult }
-  | { type: "pageOpsError"; error: string };
+  | { type: "pageOpsError"; pageNumber: number; error: string };
 
 export const initialState: AppState = {
-  status: "idle",
+  document: { status: "idle" },
+  pageOps: { status: "idle" },
   selectionOrigin: "tree",
   treeView: "objects",
   bottomTab: "raw",
   bottomOpen: false,
   currentPage: 1,
-  pageOperationsStatus: "idle",
 };
 
 export function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "loadStart":
-      // Drop EVERY load-derived field when a new file starts loading — the
-      // previous analysis, structTree, fileBytes, and any in-flight error
-      // must not bleed into the next document.
+      // Drop every load-derived slice when a new file starts loading — the
+      // previous document, page ops, selection, and page must not bleed into
+      // the next one.
       return {
         ...initialState,
-        status: "loading",
-        ...(action.fileName ? { fileName: action.fileName } : {}),
+        document: {
+          status: "loading",
+          ...(action.fileName ? { fileName: action.fileName } : {}),
+        },
       };
-    case "loadSuccess":
+    case "loadSuccess": {
+      const fileName =
+        action.fileName ??
+        (state.document.status !== "idle" ? state.document.fileName : undefined);
       return {
         ...state,
-        status: "loaded",
-        analysis: action.analysis,
-        ...(action.structTree
-          ? { structTree: action.structTree }
-          : { structTree: undefined }),
-        ...(action.fileName ? { fileName: action.fileName } : {}),
-        ...(action.fileBytes ? { fileBytes: action.fileBytes } : {}),
-        error: undefined,
+        document: {
+          status: "loaded",
+          analysis: action.analysis,
+          ...(action.structTree ? { structTree: action.structTree } : {}),
+          ...(fileName ? { fileName } : {}),
+          ...(action.fileBytes ? { fileBytes: action.fileBytes } : {}),
+        },
+        pageOps: { status: "idle" },
         selectedNodeId: firstSelectableId(action.analysis),
         currentPage: 1,
-        pageOperations: undefined,
-        pageOperationsStatus: "idle",
-        pageOperationsError: undefined,
       };
-    case "loadError":
-      // Keep the file name so the toolbar can still show which file failed,
-      // but clear analysis-derived state so consumers cannot read stale data.
+    }
+    case "loadError": {
+      const fileName =
+        state.document.status !== "idle" ? state.document.fileName : undefined;
       return {
         ...state,
-        status: "error",
-        error: action.error,
-        analysis: undefined,
-        structTree: undefined,
-        pageOperations: undefined,
-        pageOperationsStatus: "idle",
+        document: {
+          status: "error",
+          error: action.error,
+          ...(fileName ? { fileName } : {}),
+        },
+        pageOps: { status: "idle" },
       };
+    }
     case "select":
       return {
         ...state,
@@ -139,30 +164,27 @@ export function appReducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         currentPage: action.pageNumber,
-        pageOperations: undefined,
-        pageOperationsStatus: "idle",
-        pageOperationsError: undefined,
+        pageOps: { status: "idle" },
       };
     case "pageOpsStart":
       return {
         ...state,
         currentPage: action.pageNumber,
-        pageOperationsStatus: "loading",
-        pageOperationsError: undefined,
+        pageOps: { status: "loading", pageNumber: action.pageNumber },
       };
     case "pageOpsSuccess":
       return {
         ...state,
-        pageOperations: action.result,
-        pageOperationsStatus: "loaded",
-        pageOperationsError: undefined,
+        pageOps: { status: "loaded", result: action.result },
       };
     case "pageOpsError":
       return {
         ...state,
-        pageOperationsStatus: "error",
-        pageOperationsError: action.error,
-        pageOperations: undefined,
+        pageOps: {
+          status: "error",
+          pageNumber: action.pageNumber,
+          error: action.error,
+        },
       };
     default: {
       const _exhaustive: never = action;
@@ -170,32 +192,6 @@ export function appReducer(state: AppState, action: Action): AppState {
       return state;
     }
   }
-}
-
-// =============================================================================
-// Type guards
-// =============================================================================
-//
-// The flat AppState shape doesn't constrain combinations like `status:
-// "loaded" + analysis: undefined` at the type level — the reducer is the
-// invariant gatekeeper. Until we restructure into discriminated unions,
-// these guards give consumers a single, typed entry point instead of
-// independent `state.status === "loaded" && state.analysis` checks
-// scattered through every panel.
-
-export function isAnalysisLoaded(
-  state: AppState,
-): state is AppState & { status: "loaded"; analysis: PdfAnalysis } {
-  return state.status === "loaded" && state.analysis !== undefined;
-}
-
-export function isPageOpsLoaded(
-  state: AppState,
-): state is AppState & {
-  pageOperationsStatus: "loaded";
-  pageOperations: PageOperationsResult;
-} {
-  return state.pageOperationsStatus === "loaded" && state.pageOperations !== undefined;
 }
 
 function firstSelectableId(analysis: PdfAnalysis): string | undefined {
@@ -279,9 +275,14 @@ export function AppProvider({ children, parserService }: AppProviderProps): JSX.
   // committing stale results into the reducer.
   useEffect(() => {
     if (!parser) return;
-    if (state.status !== "loaded") return;
-    if (!state.analysis?.pages[state.currentPage - 1]) return;
-    if (state.pageOperations?.pageNumber === state.currentPage) return;
+    if (state.document.status !== "loaded") return;
+    if (!state.document.analysis.pages[state.currentPage - 1]) return;
+    if (
+      state.pageOps.status === "loaded" &&
+      state.pageOps.result.pageNumber === state.currentPage
+    ) {
+      return;
+    }
 
     const controller = new AbortController();
     const target = state.currentPage;
@@ -298,13 +299,14 @@ export function AppProvider({ children, parserService }: AppProviderProps): JSX.
         if (err instanceof DOMException && err.name === "AbortError") return;
         dispatch({
           type: "pageOpsError",
+          pageNumber: target,
           error: err instanceof Error ? err.message : String(err),
         });
       });
     return () => {
       controller.abort();
     };
-  }, [state.status, state.currentPage, state.analysis, state.pageOperations, parser]);
+  }, [state.document, state.currentPage, state.pageOps, parser]);
 
   // Don't render children until the parser is available — the worker is
   // created in a commit-phase effect, so the very first render before the

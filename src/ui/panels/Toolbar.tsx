@@ -52,7 +52,10 @@ export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): JSX.Eleme
 
   const onPick = () => inputRef.current?.click();
 
-  const warningCount = state.analysis?.warnings.length ?? 0;
+  const doc = state.document;
+  const analysis = doc.status === "loaded" ? doc.analysis : undefined;
+  const fileName = doc.status !== "idle" ? doc.fileName : undefined;
+  const warningCount = analysis?.warnings.length ?? 0;
 
   return (
     <div className="toolbar" role="toolbar" aria-label="Application toolbar">
@@ -73,23 +76,23 @@ export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): JSX.Eleme
           hidden
           data-testid="file-input"
         />
-        {state.fileName && (
-          <span className="toolbar-filename" title={state.fileName}>
-            {state.fileName}
+        {fileName && (
+          <span className="toolbar-filename" title={fileName}>
+            {fileName}
           </span>
         )}
-        {state.status === "loading" && (
+        {doc.status === "loading" && (
           <span className="toolbar-status" role="status" aria-live="polite">
             loading…
           </span>
         )}
-        {state.status === "error" && (
+        {doc.status === "error" && (
           <span
             className="toolbar-status toolbar-status-error"
             role="alert"
             aria-live="assertive"
           >
-            {state.error}
+            {doc.error}
           </span>
         )}
       </div>
@@ -102,7 +105,7 @@ export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): JSX.Eleme
           onChange={(e) =>
             dispatch({ type: "setTreeView", mode: e.target.value as TreeViewMode })
           }
-          disabled={state.status !== "loaded"}
+          disabled={doc.status !== "loaded"}
         >
           {VIEW_MODES.map((m) => (
             <option key={m.value} value={m.value}>
@@ -112,7 +115,7 @@ export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): JSX.Eleme
         </select>
       </div>
 
-      {state.analysis && state.analysis.pages.length > 0 && (
+      {analysis && analysis.pages.length > 0 && (
         <div className="toolbar-group">
           <span className="toolbar-label">Page</span>
           <button
@@ -129,7 +132,7 @@ export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): JSX.Eleme
             ‹
           </button>
           <span className="toolbar-status" data-testid="toolbar-page">
-            {state.currentPage} / {state.analysis.pages.length}
+            {state.currentPage} / {analysis.pages.length}
           </span>
           <button
             type="button"
@@ -139,7 +142,7 @@ export function Toolbar({ bottomOpen, onToggleBottom }: ToolbarProps): JSX.Eleme
               dispatch({
                 type: "setCurrentPage",
                 pageNumber: Math.min(
-                  state.analysis!.pages.length,
+                  analysis.pages.length,
                   state.currentPage + 1,
                 ),
               })

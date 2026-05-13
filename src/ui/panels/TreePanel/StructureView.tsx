@@ -7,7 +7,9 @@ import type {
 
 export function StructureView(): JSX.Element {
   const { state, dispatch } = useApp();
-  if (!state.structTree) {
+  const structTree =
+    state.document.status === "loaded" ? state.document.structTree : undefined;
+  if (!structTree) {
     return (
       <div className="treepanel-empty">
         This PDF has no logical structure (it is not a tagged PDF).
@@ -21,7 +23,7 @@ export function StructureView(): JSX.Element {
       aria-label="PDF logical structure"
     >
       <StructNode
-        node={state.structTree.root}
+        node={structTree.root}
         depth={0}
         onSelect={(target) =>
           dispatch({ type: "select", nodeId: target, origin: "tree" })
@@ -120,7 +122,12 @@ function McidRow({
 }): JSX.Element {
   const { state, dispatch } = useApp();
   // Try to resolve the MCID to a concrete operation on the current page.
-  const opOnCurrentPage = state.pageOperations?.operations.find((o) => o.mcid === mcid);
+  const opOnCurrentPage =
+    state.pageOps.status === "loaded"
+      ? state.pageOps.result.operations.find((o) => o.mcid === mcid)
+      : undefined;
+  const analysis =
+    state.document.status === "loaded" ? state.document.analysis : undefined;
   return (
     <li
       className="treepanel-row"
@@ -128,8 +135,8 @@ function McidRow({
       onClick={() => {
         // If a different page is requested, switch to it; the click handler
         // then re-resolves the MCID on that page.
-        if (page && state.analysis) {
-          const idx = state.analysis.pages.findIndex((p) => p.objectRef === page);
+        if (page && analysis) {
+          const idx = analysis.pages.findIndex((p) => p.objectRef === page);
           if (idx >= 0 && idx + 1 !== state.currentPage) {
             dispatch({ type: "setCurrentPage", pageNumber: idx + 1 });
             return;

@@ -12,13 +12,13 @@ import "./TreePanel.css";
 
 export function TreePanel(): JSX.Element {
   const { state } = useApp();
+  const analysis = state.document.status === "loaded" ? state.document.analysis : undefined;
   const objects: PdfObjectSummary[] = useMemo(
-    () =>
-      state.analysis ? Object.values(state.analysis.objectsIndex) : [],
-    [state.analysis],
+    () => (analysis ? Object.values(analysis.objectsIndex) : []),
+    [analysis],
   );
-  const totalLabel = state.analysis
-    ? `${objects.length} objects · ${state.analysis.pages.length} pages`
+  const totalLabel = analysis
+    ? `${objects.length} objects · ${analysis.pages.length} pages`
     : undefined;
 
   return (
@@ -27,7 +27,7 @@ export function TreePanel(): JSX.Element {
         title={state.treeView.charAt(0).toUpperCase() + state.treeView.slice(1)}
         subtitle={totalLabel}
       />
-      {state.status !== "loaded" || !state.analysis ? (
+      {!analysis ? (
         <EmptyTree />
       ) : state.treeView === "objects" ? (
         <ObjectsView />

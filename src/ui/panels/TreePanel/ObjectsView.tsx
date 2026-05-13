@@ -9,9 +9,12 @@ export function ObjectsView(): JSX.Element {
   const { state, dispatch } = useApp();
   const [filter, setFilter] = useState("");
 
+  const analysis =
+    state.document.status === "loaded" ? state.document.analysis : undefined;
+
   const objects = useMemo(() => {
-    if (!state.analysis) return [];
-    const list = Object.values(state.analysis.objectsIndex);
+    if (!analysis) return [];
+    const list = Object.values(analysis.objectsIndex);
     list.sort((a, b) => a.number - b.number || a.generation - b.generation);
     if (!filter) return list;
     const q = filter.toLowerCase();
@@ -22,7 +25,7 @@ export function ObjectsView(): JSX.Element {
         o.hint?.toLowerCase().includes(q) ||
         o.number.toString().includes(q),
     );
-  }, [state.analysis, filter]);
+  }, [analysis, filter]);
 
   const { containerRef, range, totalHeight } = useVirtualList<HTMLDivElement>(
     objects.length,

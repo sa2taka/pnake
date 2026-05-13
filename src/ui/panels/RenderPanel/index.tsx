@@ -11,21 +11,25 @@ export function RenderPanel(): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<string>("");
   const [pageSize, setPageSize] = useState<{ width: number; height: number } | null>(null);
-  const pageOps = state.pageOperations;
+  const analysis =
+    state.document.status === "loaded" ? state.document.analysis : undefined;
+  const fileBytes =
+    state.document.status === "loaded" ? state.document.fileBytes : undefined;
+  const pageOps =
+    state.pageOps.status === "loaded" ? state.pageOps.result : undefined;
 
   // Render the page on canvas whenever the file or page changes.
   // renderPageWithHandle gives us a cancel() that aborts the in-flight
   // PDF.js render task, so rapid page navigation doesn't paint stale frames.
   useEffect(() => {
-    const bytes = state.fileBytes;
-    if (!bytes || !canvasRef.current) {
+    if (!fileBytes || !canvasRef.current) {
       setStatus("");
       return;
     }
     setStatus("rendering…");
     setPageSize(null);
     const handle = renderPageWithHandle({
-      bytes,
+      bytes: fileBytes,
       pageNumber: state.currentPage,
       canvas: canvasRef.current,
       scale: 1,
@@ -46,22 +50,20 @@ export function RenderPanel(): JSX.Element {
       cancelled = true;
       handle.cancel();
     };
-  }, [state.fileBytes, state.currentPage]);
+  }, [fileBytes, state.currentPage]);
 
-  const currentPage = state.analysis?.pages[state.currentPage - 1];
+  const currentPage = analysis?.pages[state.currentPage - 1];
 
   return (
     <div className="renderpanel" data-testid="render-panel">
       <PanelHeader
         title="Render"
         subtitle={
-          state.analysis
-            ? `Page ${state.currentPage} / ${state.analysis.pages.length}`
-            : undefined
+          analysis ? `Page ${state.currentPage} / ${analysis.pages.length}` : undefined
         }
       />
       <div className="renderpanel-canvas-wrap">
-        {!state.fileBytes && (
+        {!fileBytes && (
           <p className="renderpanel-empty">Open a PDF to render its pages.</p>
         )}
         {status && (

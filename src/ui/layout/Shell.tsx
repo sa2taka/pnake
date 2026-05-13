@@ -119,7 +119,7 @@ export function Shell(): JSX.Element {
 
 function StatusBar(): JSX.Element {
   const { state } = useApp();
-  const a = state.analysis;
+  const a = state.document.status === "loaded" ? state.document.analysis : undefined;
   return (
     <div className="statusbar">
       <span className="statusbar-segment">pnake</span>

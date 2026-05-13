@@ -4,7 +4,9 @@ import type { PdfOperation, PdfValue } from "../../../shared/ir-types";
 
 export function ContentView(): JSX.Element {
   const { state, dispatch } = useApp();
-  const operations = state.pageOperations?.operations ?? [];
+  const pageOps = state.pageOps;
+  const operations =
+    pageOps.status === "loaded" ? pageOps.result.operations : [];
   const selectedRef = useRef<HTMLLIElement | null>(null);
 
   // Scroll the selected row into view when selection moves to this page.
@@ -27,14 +29,10 @@ export function ContentView(): JSX.Element {
     });
   }, [operations]);
 
-  if (state.pageOperationsStatus === "loading")
+  if (pageOps.status === "loading")
     return <div className="treepanel-empty">Parsing page content…</div>;
-  if (state.pageOperationsStatus === "error")
-    return (
-      <div className="treepanel-empty">
-        Error: {state.pageOperationsError}
-      </div>
-    );
+  if (pageOps.status === "error")
+    return <div className="treepanel-empty">Error: {pageOps.error}</div>;
   if (operations.length === 0)
     return <div className="treepanel-empty">No content operators on this page.</div>;
 
