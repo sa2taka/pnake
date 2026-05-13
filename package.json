@@ -16,8 +16,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "e2e": "playwright test",
-    "e2e:install": "playwright install chromium"
+    "e2e": "playwright test --grep-invert 'README screenshots'",
+    "e2e:install": "playwright install chromium",
+    "capture:screenshots": "playwright test --grep 'README screenshots' --reporter=list && bash scripts/annotate.sh"
   },
   "dependencies": {
     "pdfjs-dist": "^5.7.284",
