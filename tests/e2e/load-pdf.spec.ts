@@ -158,6 +158,28 @@ test.describe("pnake — load tracemonkey.pdf", () => {
     await expect(tree).toContainText(/no logical structure/i);
   });
 
+  test("Pages tree responds to arrow keys", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("file-input").setInputFiles(TRACEMONKEY);
+    await page.getByRole("toolbar").locator("select").selectOption({ label: "Pages" });
+
+    const listbox = page.getByRole("listbox", { name: "Pages" });
+    await listbox.focus();
+
+    // ArrowDown should move the selection from "no selection" to the first page.
+    await page.keyboard.press("ArrowDown");
+    await expect(listbox.locator('[aria-selected="true"]').first()).toHaveText(/Page 1/);
+
+    // Two more downs lands on page 3.
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowDown");
+    await expect(listbox.locator('[aria-selected="true"]').first()).toHaveText(/Page 3/);
+
+    // End jumps to the last page; for tracemonkey that's 14.
+    await page.keyboard.press("End");
+    await expect(listbox.locator('[aria-selected="true"]').first()).toHaveText(/Page 14/);
+  });
+
   test("the bottom drawer renders a hex view of stream bytes", async ({ page }) => {
     await page.goto("/");
     const input = page.getByTestId("file-input");

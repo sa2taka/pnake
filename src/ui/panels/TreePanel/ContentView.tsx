@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, type FC } from "react";
 import { useApp } from "../../state/AppContext";
+import { useListboxNav } from "../../hooks/useListboxNav";
 import type { PdfOperation, PdfValue } from "../../../shared/ir-types";
 
 export const ContentView: FC = () => {
@@ -7,6 +8,12 @@ export const ContentView: FC = () => {
   const pageOps = state.pageOps;
   const operations = pageOps.status === "loaded" ? pageOps.result.operations : [];
   const selectedRef = useRef<HTMLLIElement | null>(null);
+  const ids = operations.map((o) => o.id);
+  const onKeyDown = useListboxNav({
+    ids,
+    selectedId: state.selectedNodeId,
+    onSelect: (id) => dispatch({ type: "select", nodeId: id, origin: "tree" }),
+  });
 
   // Scroll the selected row into view when selection moves to this page.
   // behavior: "auto" — CSS reduced-motion can't reach a JS smooth scroll,
@@ -47,6 +54,9 @@ export const ContentView: FC = () => {
       className="treepanel-list"
       role="listbox"
       aria-label={`Content of page ${state.currentPage}`}
+      aria-activedescendant={state.selectedNodeId}
+      tabIndex={0}
+      onKeyDown={onKeyDown}
     >
       {rows.map(({ op, depth: rowDepth }) => {
         const selected = state.selectedNodeId === op.id;
@@ -54,6 +64,10 @@ export const ContentView: FC = () => {
           <li
             ref={selected ? selectedRef : null}
             key={op.id}
+            id={op.id}
+            role="option"
+            aria-selected={selected}
+            tabIndex={-1}
             className="treepanel-row"
             data-testid={`tree-op-${op.sequence}`}
             data-selected={selected}
